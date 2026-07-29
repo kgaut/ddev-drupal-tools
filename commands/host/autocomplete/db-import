@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#ddev-generated
+#
+# Autocomplétion de « ddev db-import » : propose les noms des dumps du dossier
+# de dumps du projet, du plus récent au plus ancien.
+#
+# Mécanisme ddev (docs "Custom Commands » Autocompletion") : un script du même
+# nom que la commande, placé dans commands/host/autocomplete/, est appelé à
+# chaque <tab> avec la ligne en cours en arguments ; il écrit les suggestions
+# sur stdout, une par ligne — ddev filtre lui-même selon le préfixe déjà tapé.
+#
+# Résolution du dossier de dumps : identique à db-import
+# (environnement > .env > .ddev/.env > files/dumps).
+# Contexte de complétion : on ne doit jamais échouer bruyamment -> pas de
+# set -e, sortie silencieuse (exit 0 sans suggestion) au moindre souci.
+
+DEFAULT_DUMP_DIR="files/dumps"
+ENV_VAR_NAME="DB_DUMP_DIR"
+# Extensions gérées par "ddev import-db" (mêmes que db-import).
+EXTENSIONS=(sql sql.gz sql.bz2 sql.xz mysql mysql.gz zip tgz tar.gz)
+
+# DDEV_APPROOT n'est pas garanti lors d'une complétion : repli sur une remontée
+# vers la racine du projet (.ddev/config.yaml) depuis le dossier courant.
+APPROOT="${DDEV_APPROOT:-}"
+if [ -z "$APPROOT" ]; then
+  dir="$PWD"
+  while [ "$dir" != "/" ]; do
+    if [ -f "$dir/.ddev/config.yaml" ]; then APPROOT="$dir"; break; fi
+    dir="$(dirname "$dir")"
+  done
+fi
+[ -n "$APPROOT" ] || exit 0
+
+# Lit une variable dans un fichier .env sans le sourcer (pas d'exécution de code).
+read_env_var() {
+  local file="$1" key="$2" line value
+  [ -f "$file" ] || return 1
+  line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$file" 2>/dev/null | tail -n 1 || true)"
+  [ -n "$line" ] || return 1
+
+  value="${line#*=}"
+  value="${value#"${value%%[![:space:]]*}"}"   # trim gauche
+
+  if [ "${value:0:1}" = '"' ]; then
+    value="${value#\"}"; value="${value%%\"*}"
+  elif [ "${value:0:1}" = "'" ]; then
+    value="${value#\'}"; value="${value%%\'*}"
+  else
+    value="${value%%#*}"                        # commentaire de fin de ligne
+    value="${value%"${value##*[![:space:]]}"}"  # trim droite
+  fi
+
+  [ -n "$value" ] || return 1
+  printf '%s' "$value"
+}
+
+# Priorité : environnement > .env (racine) > .ddev/.env > défaut.
+dump_dir="${!ENV_VAR_NAME:-}"
+if [ -z "$dump_dir" ]; then
+  dump_dir="$(read_env_var "$APPROOT/.env" "$ENV_VAR_NAME")" \
+    || dump_dir="$(read_env_var "$APPROOT/.ddev/.env" "$ENV_VAR_NAME")" \
+    || dump_dir="$DEFAULT_DUMP_DIR"
+fi
+
+case "$dump_dir" in
+  "~/"*) dump_dir="$HOME/${dump_dir#\~/}" ;;
+esac
+case "$dump_dir" in
+  /*) ;;
+  *) dump_dir="$APPROOT/$dump_dir" ;;
+esac
+
+[ -d "$dump_dir" ] || exit 0
+
+find_args=()
+for ext in "${EXTENSIONS[@]}"; do
+  [ ${#find_args[@]} -gt 0 ] && find_args+=(-o)
+  find_args+=(-name "*.${ext}")
+done
+
+# Noms seuls (db-import les résout dans le dossier de dumps), du plus récent au
+# plus ancien — l'ordre est celui présenté par le shell.
+find "$dump_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -printf '%T@\t%f\n' 2>/dev/null \
+  | sort -rn | cut -f2-
+
+exit 0

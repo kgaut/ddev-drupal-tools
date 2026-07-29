@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#ddev-generated
+
+## Description: Télécharge le dernier dump de préproduction puis l'importe en local
+## Usage: db-preprod-import
+## Example: ddev db-preprod-import
+##
+## Enchaîne `ddev db-preprod-get` (téléchargement vers le dossier de dumps) puis
+## `ddev db-import` (qui prend le dump le plus récent de ce dossier).
+
+set -euo pipefail
+
+ddev db-preprod-get
+ddev db-import

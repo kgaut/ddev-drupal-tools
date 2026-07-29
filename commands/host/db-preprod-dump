@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#ddev-generated
+
+## Description: Dump (gzip) de la base de préproduction sur le serveur distant
+## Usage: db-preprod-dump
+## Example: ddev db-preprod-dump
+##
+## Serveur/chemins lus dans le .env du projet : PREPROD_USER, PREPROD_HOST,
+## PREPROD_PATH, PREPROD_DRUSH, PREPROD_DB_PATH, PREPROD_URL (+ PREPROD_PORT, défaut 22).
+
+set -euo pipefail
+
+ENV_FILE="${DDEV_APPROOT}/.env"
+
+# Lit une variable dans un fichier .env sans le sourcer (pas d'exécution de code)
+# — même helper que db-import/db-export (dupliqué : un _lib.sh partagé
+# apparaîtrait comme commande dans `ddev -h`).
+read_env_var() {
+  local file="$1" key="$2" line value
+  [ -f "$file" ] || return 1
+  line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$file" 2>/dev/null | tail -n 1 || true)"
+  [ -n "$line" ] || return 1
+
+  value="${line#*=}"
+  value="${value#"${value%%[![:space:]]*}"}"   # trim gauche
+
+  if [ "${value:0:1}" = '"' ]; then
+    value="${value#\"}"; value="${value%%\"*}"
+  elif [ "${value:0:1}" = "'" ]; then
+    value="${value#\'}"; value="${value%%\'*}"
+  else
+    value="${value%%#*}"                        # commentaire de fin de ligne
+    value="${value%"${value##*[![:space:]]}"}"  # trim droite
+  fi
+
+  [ -n "$value" ] || return 1
+  printf '%s' "$value"
+}
+
+# Variables PREPROD_* : l'environnement prime, puis le .env du projet.
+for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PREPROD_URL; do
+  [ -n "${!v:-}" ] && continue
+  if val="$(read_env_var "$ENV_FILE" "$v")"; then declare "$v=$val"; fi
+done
+PREPROD_PORT="${PREPROD_PORT:-22}"
+for v in PREPROD_USER PREPROD_HOST PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PREPROD_URL; do
+  [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PREPROD_* dans le .env du projet." >&2; exit 1; }
+done
+
+echo "Dump de la base de préproduction (${PREPROD_HOST})…"
+ssh -t -p "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}" \
+  "cd ${PREPROD_PATH} && ${PREPROD_DRUSH} sql-dump --gzip > \"${PREPROD_DB_PATH}/\$(date +%Y-%m-%d_%H-%M-%S)-${PREPROD_URL}-preprod.sql.gz\""
+echo "Dump terminé."
+ssh -p "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}" "ls -alh ${PREPROD_DB_PATH}"

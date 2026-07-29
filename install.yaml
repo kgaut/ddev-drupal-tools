@@ -1,0 +1,39 @@
+#ddev-generated
+name: drupal-tools
+
+# Toutes les commandes sont installées dans le dossier DDEV *global* (~/.ddev),
+# et sont donc disponibles dans tous les projets DDEV de la machine.
+global_files:
+  - commands/host/db-import
+  - commands/host/db-export
+  - commands/host/db-prod-dump
+  - commands/host/db-prod-get
+  - commands/host/db-prod-import
+  - commands/host/ssh-prod
+  - commands/host/db-preprod-dump
+  - commands/host/db-preprod-get
+  - commands/host/db-preprod-import
+  - commands/host/ssh-preprod
+  - commands/host/autocomplete/db-import
+
+# L'autocomplétion dynamique des commandes host (commands/host/autocomplete/)
+# est vérifiée sur DDEV v1.25.
+ddev_version_constraint: '>= v1.25.0'
+
+post_install_actions:
+  # global_files doit préserver le bit exécutable, ceinture et bretelles :
+  # sans lui les commandes n'apparaissent pas dans `ddev -h`.
+  - |
+    #ddev-description: S'assurer que les commandes sont exécutables
+    GLOBAL_DDEV="${DDEV_GLOBAL_CONFIG_DIR:-$HOME/.ddev}"
+    chmod +x "$GLOBAL_DDEV"/commands/host/db-import \
+             "$GLOBAL_DDEV"/commands/host/db-export \
+             "$GLOBAL_DDEV"/commands/host/db-prod-dump \
+             "$GLOBAL_DDEV"/commands/host/db-prod-get \
+             "$GLOBAL_DDEV"/commands/host/db-prod-import \
+             "$GLOBAL_DDEV"/commands/host/ssh-prod \
+             "$GLOBAL_DDEV"/commands/host/db-preprod-dump \
+             "$GLOBAL_DDEV"/commands/host/db-preprod-get \
+             "$GLOBAL_DDEV"/commands/host/db-preprod-import \
+             "$GLOBAL_DDEV"/commands/host/ssh-preprod \
+             "$GLOBAL_DDEV"/commands/host/autocomplete/db-import

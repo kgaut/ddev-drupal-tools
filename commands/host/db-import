@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+#ddev-generated
+
+## Description: Vide la base, importe le dump le plus récent (files/dumps par défaut), puis drush deploy + cr + uli
+## Usage: db-import [-y] [-n] [-l] [fichier]
+## Example: "ddev db-import" or "ddev db-import dev_2026-04-14.sql.gz" or "ddev db-import files/dumps/dev_2026-04-14.sql.gz" or "ddev db-import -l" or "ddev db-import -n" or "ddev db-import -y"
+## Flags: [{"Name":"yes","Shorthand":"y","Type":"bool","Usage":"Ne pas demander de confirmation"},{"Name":"dry-run","Shorthand":"n","Type":"bool","Usage":"Affiche ce qui serait fait, sans rien exécuter"},{"Name":"list","Shorthand":"l","Type":"bool","Usage":"Liste les dumps disponibles, du plus récent au plus ancien"},{"Name":"file","Shorthand":"f","Type":"string","Usage":"Nom ou chemin d'un dump précis à importer"}]
+##
+## Le fichier passé en argument est cherché tel quel (chemin absolu ou relatif
+## à la racine du projet), puis dans le dossier de dumps : un simple nom de
+## fichier suffit donc.
+##
+## Le dossier des dumps est "files/dumps" par défaut. Surchargeable par projet
+## via la variable DB_DUMP_DIR dans le .env du projet (ou .ddev/.env) :
+##   DB_DUMP_DIR=dumps
+##   DB_DUMP_DIR=/chemin/absolu/vers/dumps
+
+set -euo pipefail
+
+DEFAULT_DUMP_DIR="files/dumps"
+ENV_VAR_NAME="DB_DUMP_DIR"
+# Extensions gérées par "ddev import-db".
+EXTENSIONS=(sql sql.gz sql.bz2 sql.xz mysql mysql.gz zip tgz tar.gz)
+
+APPROOT="${DDEV_APPROOT:-$PWD}"
+cd "$APPROOT"
+
+assume_yes=false
+dry_run=false
+list_only=false
+dump_file=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -y|--yes)     assume_yes=true ;;
+    -n|--dry-run) dry_run=true ;;
+    -l|--list)    list_only=true ;;
+    -f|--file)    shift; dump_file="${1:-}" ;;
+    --file=*)     dump_file="${1#--file=}" ;;
+    -*)           echo "Option inconnue : $1" >&2; exit 1 ;;
+    *)            dump_file="$1" ;;
+  esac
+  shift
+done
+
+# Lit une variable dans un fichier .env sans le sourcer (pas d'exécution de code).
+read_env_var() {
+  local file="$1" key="$2" line value
+  [ -f "$file" ] || return 1
+  line="$(grep -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$file" 2>/dev/null | tail -n 1 || true)"
+  [ -n "$line" ] || return 1
+
+  value="${line#*=}"
+  value="${value#"${value%%[![:space:]]*}"}"   # trim gauche
+
+  if [ "${value:0:1}" = '"' ]; then
+    value="${value#\"}"; value="${value%%\"*}"
+  elif [ "${value:0:1}" = "'" ]; then
+    value="${value#\'}"; value="${value%%\'*}"
+  else
+    value="${value%%#*}"                        # commentaire de fin de ligne
+    value="${value%"${value##*[![:space:]]}"}"  # trim droite
+  fi
+
+  [ -n "$value" ] || return 1
+  printf '%s' "$value"
+}
+
+# Priorité : environnement > .env (racine) > .ddev/.env > défaut.
+dump_dir="${!ENV_VAR_NAME:-}"
+dump_dir_origin="variable d'environnement"
+if [ -z "$dump_dir" ]; then
+  if dump_dir="$(read_env_var "$APPROOT/.env" "$ENV_VAR_NAME")"; then
+    dump_dir_origin=".env"
+  elif dump_dir="$(read_env_var "$APPROOT/.ddev/.env" "$ENV_VAR_NAME")"; then
+    dump_dir_origin=".ddev/.env"
+  else
+    dump_dir="$DEFAULT_DUMP_DIR"
+    dump_dir_origin="défaut"
+  fi
+fi
+
+case "$dump_dir" in
+  "~/"*) dump_dir="$HOME/${dump_dir#\~/}" ;;
+esac
+case "$dump_dir" in
+  /*) ;;
+  *) dump_dir="$APPROOT/$dump_dir" ;;
+esac
+
+# Un dump explicite court-circuite la recherche : d'abord tel quel (chemin
+# absolu ou relatif au projet), sinon relativement au dossier de dumps, ce qui
+# permet de ne passer que le nom du fichier.
+if [ -n "$dump_file" ]; then
+  case "$dump_file" in
+    /*) ;;
+    *)
+      if [ ! -f "$dump_file" ] && [ -f "$dump_dir/$dump_file" ]; then
+        dump_file="$dump_dir/$dump_file"
+      fi
+      ;;
+  esac
+  [ -f "$dump_file" ] || {
+    echo "Fichier introuvable : $dump_file" >&2
+    echo "Cherché depuis $APPROOT, puis dans $dump_dir ($dump_dir_origin)." >&2
+    echo "\"ddev db-import -l\" liste les dumps disponibles." >&2
+    exit 1
+  }
+else
+  [ -d "$dump_dir" ] || {
+    echo "Dossier de dumps introuvable : $dump_dir ($dump_dir_origin)" >&2
+    echo "Définis $ENV_VAR_NAME dans le .env du projet pour le surcharger." >&2
+    exit 1
+  }
+
+  find_args=()
+  for ext in "${EXTENSIONS[@]}"; do
+    [ ${#find_args[@]} -gt 0 ] && find_args+=(-o)
+    find_args+=(-name "*.${ext}")
+  done
+
+  # mtime<TAB>chemin, trié du plus récent au plus ancien.
+  mapfile -t dumps < <(find "$dump_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -printf '%T@\t%p\n' | sort -rn)
+
+  [ ${#dumps[@]} -gt 0 ] || { echo "Aucun dump trouvé dans $dump_dir" >&2; exit 1; }
+
+  if $list_only; then
+    echo "Dumps disponibles dans $dump_dir ($dump_dir_origin), du plus récent au plus ancien :"
+    for entry in "${dumps[@]}"; do
+      path="${entry#*$'\t'}"
+      printf '  %s  %s  %s\n' \
+        "$(date -d "@${entry%%$'\t'*}" '+%Y-%m-%d %H:%M')" \
+        "$(du -h "$path" | cut -f1)" \
+        "$(basename "$path")"
+    done
+    exit 0
+  fi
+
+  dump_file="${dumps[0]#*$'\t'}"
+fi
+
+# Le dump peut venir d'ailleurs que du dossier de dumps (chemin explicite).
+dump_parent="$(cd "$(dirname "$dump_file")" && pwd)"
+if [ -d "$dump_dir" ] && [ "$dump_parent" = "$(cd "$dump_dir" && pwd)" ]; then
+  dump_dir_display="$dump_dir ($dump_dir_origin)"
+else
+  dump_dir_display="$dump_parent"
+fi
+
+echo "Projet     : ${DDEV_PROJECT:-?}"
+echo "Dossier    : $dump_dir_display"
+echo "Dump       : $(basename "$dump_file") ($(du -h "$dump_file" | cut -f1), $(date -r "$dump_file" '+%Y-%m-%d %H:%M'))"
+echo "Actions    : vidage base + import, puis drush deploy, drush cr, drush uli"
+echo
+
+if $dry_run; then
+  echo "[dry-run] Commandes qui seraient exécutées :"
+  echo "  ddev import-db --file=$dump_file"
+  echo "  ddev drush deploy"
+  echo "  ddev drush cr"
+  echo "  ddev drush uli"
+  exit 0
+fi
+
+if ! $assume_yes && [ "${DDEV_NONINTERACTIVE:-}" != "true" ]; then
+  read -rp "La base de ${DDEV_PROJECT:-ce projet} va être ÉCRASÉE. Continuer ? [y/N] " answer
+  case "$answer" in
+    [Yy]|[Yy][Ee][Ss]) ;;
+    *) echo "Annulé."; exit 0 ;;
+  esac
+fi
+
+# import-db vide la base avant d'importer (comportement par défaut, cf. --no-drop).
+echo "==> Vidage de la base et import du dump"
+ddev import-db --file="$dump_file"
+
+echo "==> drush deploy"
+ddev drush deploy
+
+echo "==> drush cr"
+ddev drush cr
+
+echo "==> drush uli"
+ddev drush uli
