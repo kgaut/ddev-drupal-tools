@@ -1,15 +1,17 @@
 # ddev-drupal-tools
 
-Addon [DDEV](https://ddev.com/) **global** pour projets Drupal : gestion des dumps de base de
-données en local et rapatriement depuis les serveurs de production / pré-production.
+> 🇫🇷 [Version française](README.fr.md)
 
-Les commandes sont installées dans le dossier DDEV global (`~/.ddev/commands/host/`) et sont
-donc disponibles dans **tous** les projets DDEV de la machine.
+**Global** [DDEV](https://ddev.com/) add-on for Drupal projects: manage database dumps locally
+and pull them from your production / staging servers.
 
-Présentation détaillée sur kgaut.net :
+The commands are installed into the global DDEV directory (`~/.ddev/commands/host/`) and are
+therefore available in **every** DDEV project on the machine.
 
-- [db-import / db-export : deux commandes DDEV globales pour gérer ses dumps](https://kgaut.net/blog/2026/db-import-db-export-deux-commandes-ddev-globales-pour-gerer-ses-dumps)
-- [db-prod-* et ssh-prod : des commandes DDEV globales pour rapatrier sa base de production](https://kgaut.net/blog/2026/db-prod-et-ssh-prod-des-commandes-ddev-globales-pour-rapatrier-sa-base-de-production)
+Detailed write-ups (in French) on kgaut.net:
+
+- [db-import / db-export: two global DDEV commands to manage dumps](https://kgaut.net/blog/2026/db-import-db-export-deux-commandes-ddev-globales-pour-gerer-ses-dumps)
+- [db-prod-* and ssh-prod: global DDEV commands to pull your production database](https://kgaut.net/blog/2026/db-prod-et-ssh-prod-des-commandes-ddev-globales-pour-rapatrier-sa-base-de-production)
 
 ## Installation
 
@@ -17,63 +19,63 @@ Présentation détaillée sur kgaut.net :
 ddev add-on get kgaut/ddev-drupal-tools
 ```
 
-Ou depuis un clone local :
+Or from a local clone:
 
 ```bash
-ddev add-on get /chemin/vers/ddev-drupal-tools
+ddev add-on get /path/to/ddev-drupal-tools
 ```
 
-Suppression : `ddev add-on remove drupal-tools`.
+Removal: `ddev add-on remove drupal-tools`.
 
-## Commandes
+## Commands
 
-### Locales
+### Local
 
-| Commande | Description |
+| Command | Description |
 | --- | --- |
-| `ddev db-import [dump]` | Vide la base, importe un dump (le plus récent du dossier de dumps par défaut), puis `drush deploy`, `drush cr`, `drush uli`. Options : `-l` (lister les dumps), `-n` (dry-run), `-y` (sans confirmation). |
-| `ddev db-export` | Vide les caches puis exporte la base vers `<dossier>/<date>-<projet>-dev.sql.gz`. Options : `--no-gzip`, `--no-cr`, `-n`. |
+| `ddev db-import [dump]` | Drops the database, imports a dump (most recent one from the dumps directory by default), then runs `drush deploy`, `drush cr`, `drush uli`. Flags: `-l` (list dumps), `-n` (dry-run), `-y` (skip confirmation). |
+| `ddev db-export` | Clears caches then exports the database to `<dir>/<date>-<project>-dev.sql.gz`. Flags: `--no-gzip`, `--no-cr`, `-n`. |
 
-Formats gérés par `db-import` : `.sql`, `.sql.gz`, `.sql.bz2`, `.sql.xz`, `.mysql`, `.mysql.gz`, `.zip`, `.tgz`, `.tar.gz`.
-Le nom de dump s'autocomplète (`ddev db-import <tab>`), du plus récent au plus ancien.
+Formats supported by `db-import`: `.sql`, `.sql.gz`, `.sql.bz2`, `.sql.xz`, `.mysql`, `.mysql.gz`, `.zip`, `.tgz`, `.tar.gz`.
+Dump names are tab-completed (`ddev db-import <tab>`), most recent first.
 
-### Serveur distant (production / pré-production)
+### Remote server (production / staging)
 
-| Commande | Description |
+| Command | Description |
 | --- | --- |
-| `ddev db-prod-dump` | `drush sql-dump --gzip` sur le serveur, fichier horodaté dans `PROD_DB_PATH` (le dump reste sur le serveur). |
-| `ddev db-prod-get` | Rapatrie le dump distant le plus récent dans le dossier de dumps local. |
-| `ddev db-prod-import` | Enchaîne `db-prod-get` + `db-import`. |
-| `ddev ssh-prod` | Session SSH sur le serveur de production du projet courant. |
+| `ddev db-prod-dump` | Runs `drush sql-dump --gzip` on the server, into a timestamped file in `PROD_DB_PATH` (the dump stays on the server). |
+| `ddev db-prod-get` | Downloads the most recent remote dump into the local dumps directory. |
+| `ddev db-prod-import` | Chains `db-prod-get` + `db-import`. |
+| `ddev ssh-prod` | Opens an SSH session on the current project's production server. |
 
-Chaque commande a sa jumelle `preprod` : `db-preprod-dump`, `db-preprod-get`,
-`db-preprod-import`, `ssh-preprod` — mêmes fichiers, préfixe de variables `PREPROD_`.
+Each command has its `preprod` (staging) twin: `db-preprod-dump`, `db-preprod-get`,
+`db-preprod-import`, `ssh-preprod` — same files, `PREPROD_` variable prefix.
 
 ## Configuration
 
-Tout se configure dans le `.env` à la racine de chaque projet (jamais sourcé : les variables
-sont extraites par `grep`). Les commandes sont visibles partout mais ne servent que dans les
-projets configurés — une variable manquante donne une erreur explicite.
+Everything is configured in the `.env` file at each project's root (never sourced: variables
+are extracted with `grep`). The commands are visible everywhere but only useful in configured
+projects — a missing variable produces an explicit error.
 
 ```bash
-# .env du projet
+# project .env
 PROD_USER=kevin
-PROD_HOST=mon-serveur.example.org
-PROD_PORT=22                           # optionnel, défaut 22
-PROD_PATH=/var/www/monprojet           # racine du projet sur le serveur
-PROD_DRUSH=vendor/bin/drush            # binaire drush, relatif à PROD_PATH
-PROD_DB_PATH=/var/www/monprojet/dumps  # dossier des dumps, sur le serveur
-PROD_URL=monprojet.example.org         # sert à nommer les fichiers de dump
+PROD_HOST=my-server.example.org
+PROD_PORT=22                           # optional, defaults to 22
+PROD_PATH=/var/www/myproject           # project root on the server
+PROD_DRUSH=vendor/bin/drush            # drush binary, relative to PROD_PATH
+PROD_DB_PATH=/var/www/myproject/dumps  # dumps directory, on the server
+PROD_URL=myproject.example.org         # used to name dump files
 
-# même principe pour la préprod, préfixe PREPROD_
+# same idea for staging, with the PREPROD_ prefix
 ```
 
-### Dossier de dumps local
+### Local dumps directory
 
-Commun à toutes les commandes. Défaut `files/dumps` (relatif à la racine du projet),
-surchargeable via `DB_DUMP_DIR` (`.env` du projet, puis `.ddev/.env`), en chemin relatif ou
-absolu. Les commandes `db-{prod,preprod}-get` acceptent en plus `LOCAL_DB_PATH`, prioritaire
-sur `DB_DUMP_DIR`.
+Shared by all commands. Defaults to `files/dumps` (relative to the project root), overridable
+with `DB_DUMP_DIR` (project `.env`, then `.ddev/.env`), as a relative or absolute path. The
+`db-{prod,preprod}-get` commands also honor `LOCAL_DB_PATH`, which takes precedence over
+`DB_DUMP_DIR`.
 
 ## Tests
 
@@ -81,8 +83,8 @@ sur `DB_DUMP_DIR`.
 bats tests
 ```
 
-Les tests utilisent un `HOME` isolé : ils ne touchent pas au `~/.ddev` de la machine.
+Tests run with an isolated `HOME`: they never touch the machine's real `~/.ddev`.
 
-## Licence
+## License
 
 MIT.
