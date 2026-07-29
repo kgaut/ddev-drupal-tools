@@ -29,7 +29,36 @@ ddev add-on get /path/to/ddev-drupal-tools
 > in the context of a DDEV project: run it from a project directory, or add
 > `--project <name>`. Outside a project it fails with "could not find a project".
 
-Removal: `ddev add-on remove drupal-tools`.
+DDEV has no real notion of a "global add-on" (open feature request:
+[ddev/ddev#6145](https://github.com/ddev/ddev/issues/6145)): `global_files` only controls
+where the **files** are copied, while the installation itself (name, version, file list) is
+recorded **in the project** used as context, in `.ddev/addon-metadata/drupal-tools/manifest.yaml`.
+Don't delete that file — DDEV needs it for updates and removal — but keep it out of version
+control by ignoring `.ddev/addon-metadata/` in the project's root `.gitignore`.
+
+### Update
+
+Run the install command again **from the project that was used to install the add-on**
+(that's where DDEV recorded the installation):
+
+```bash
+ddev add-on get kgaut/ddev-drupal-tools
+```
+
+Files carrying the `#ddev-generated` marker are replaced with the new version. Running the
+command from another project works too, but leaves a second manifest in that project —
+better to always anchor on the same one.
+
+### Removal
+
+From the same project:
+
+```bash
+ddev add-on remove drupal-tools
+```
+
+Because of the per-project tracking described above, `ddev add-on remove` and
+`ddev add-on list --installed` only see the add-on from the project holding the manifest.
 
 ## Commands
 
