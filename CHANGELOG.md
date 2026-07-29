@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- README: note that `ddev add-on get` requires a DDEV project context (run it from a project directory or use `--project`) (#4)
 - Switch the changelog to English, French version kept in `CHANGELOG.fr.md` and cross-linked from the header (#3)
 - Main README translated into English, French version kept in `README.fr.md` and linked from the header (#2)
 

@@ -4,6 +4,7 @@
 
 ## Non publié
 
+- README : note sur le contexte de projet DDEV exigé par `ddev add-on get` (lancer depuis un dossier de projet ou utiliser `--project`) (#4)
 - Changelog basculé en anglais, version française conservée dans `CHANGELOG.fr.md` et liée depuis l'en-tête (#3)
 - README principal traduit en anglais, version française conservée dans `README.fr.md` et liée depuis l'en-tête (#2)
 

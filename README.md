@@ -25,6 +25,10 @@ Or from a local clone:
 ddev add-on get /path/to/ddev-drupal-tools
 ```
 
+> **Note:** even though the add-on installs its files globally, `ddev add-on get` must run
+> in the context of a DDEV project: run it from a project directory, or add
+> `--project <name>`. Outside a project it fails with "could not find a project".
+
 Removal: `ddev add-on remove drupal-tools`.
 
 ## Commands
