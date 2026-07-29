@@ -1,9 +1,12 @@
 # Changelog
 
-## Non publié
+> 🇫🇷 [Version française](CHANGELOG.fr.md)
 
-- README principal traduit en anglais, version française conservée dans `README.fr.md` et liée depuis l'en-tête (#2)
+## Unreleased
+
+- Switch the changelog to English, French version kept in `CHANGELOG.fr.md` and cross-linked from the header (#3)
+- Main README translated into English, French version kept in `README.fr.md` and linked from the header (#2)
 
 ## 0.1.0 — 2026-07-29
 
-- Implémentation initiale de l'addon : les 10 commandes globales (`db-import`, `db-export`, `db-{prod,preprod}-{dump,get,import}`, `ssh-{prod,preprod}`) et l'autocomplétion de `db-import`, installées via `global_files`, avec tests bats en HOME isolé (#1)
+- Initial implementation of the add-on: 10 global commands (`db-import`, `db-export`, `db-{prod,preprod}-{dump,get,import}`, `ssh-{prod,preprod}`) plus `db-import` autocompletion, installed via `global_files`, with bats tests in an isolated HOME (#1)
