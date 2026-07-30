@@ -36,7 +36,9 @@ que la destination des **fichiers** copiés, tandis que l'installation elle-mêm
 version, liste des fichiers) est enregistrée **dans le projet** utilisé comme contexte,
 dans `.ddev/addon-metadata/drupal-tools/manifest.yaml`. Ne pas supprimer ce fichier —
 DDEV en a besoin pour la mise à jour et la suppression — mais le garder hors du dépôt en
-ignorant `.ddev/addon-metadata/` dans le `.gitignore` racine du projet.
+ignorant `.ddev/addon-metadata/drupal-tools/manifest.yaml` dans le `.gitignore` racine du
+projet (ignorer ce seul fichier, pas tout le dossier `addon-metadata/` : les manifestes des
+addons de projet ont vocation à être commités).
 
 ### Mise à jour
 

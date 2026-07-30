@@ -34,7 +34,9 @@ DDEV has no real notion of a "global add-on" (open feature request:
 where the **files** are copied, while the installation itself (name, version, file list) is
 recorded **in the project** used as context, in `.ddev/addon-metadata/drupal-tools/manifest.yaml`.
 Don't delete that file — DDEV needs it for updates and removal — but keep it out of version
-control by ignoring `.ddev/addon-metadata/` in the project's root `.gitignore`.
+control by ignoring `.ddev/addon-metadata/drupal-tools/manifest.yaml` in the project's root
+`.gitignore` (ignore just that file, not the whole `addon-metadata/` directory: manifests of
+project-level add-ons are meant to be committed).
 
 ### Update
 

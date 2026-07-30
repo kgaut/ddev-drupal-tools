@@ -2,6 +2,10 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
+## Non publié
+
+- README : ne conseiller d'ignorer que le manifeste de l'addon (`.ddev/addon-metadata/drupal-tools/manifest.yaml`) plutôt que tout le dossier `addon-metadata/`, dont les manifestes d'addons de projet ont vocation à être commités (#6)
+
 ## 0.1.1 — 2026-07-30
 
 - README : documentation de la mise à jour et de la suppression — toujours depuis le projet qui a servi à l'installation, DDEV enregistrant l'installation par projet (`.ddev/addon-metadata/`, limitation DDEV, cf. ddev/ddev#6145) (#5)
