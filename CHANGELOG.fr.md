@@ -2,7 +2,7 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
-## Non publié
+## 0.1.1 — 2026-07-30
 
 - README : documentation de la mise à jour et de la suppression — toujours depuis le projet qui a servi à l'installation, DDEV enregistrant l'installation par projet (`.ddev/addon-metadata/`, limitation DDEV, cf. ddev/ddev#6145) (#5)
 - README : note sur le contexte de projet DDEV exigé par `ddev add-on get` (lancer depuis un dossier de projet ou utiliser `--project`) (#4)

@@ -2,7 +2,7 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
-## Unreleased
+## 0.1.1 — 2026-07-30
 
 - README: document the update and removal process — always run from the project used to install the add-on, since DDEV records the installation per project (`.ddev/addon-metadata/`, DDEV limitation, see ddev/ddev#6145) (#5)
 - README: note that `ddev add-on get` requires a DDEV project context (run it from a project directory or use `--project`) (#4)
