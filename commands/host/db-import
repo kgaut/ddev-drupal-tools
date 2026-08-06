@@ -66,6 +66,17 @@ read_env_var() {
   printf '%s' "$value"
 }
 
+# Date de modification d'un fichier et formatage d'un timestamp : « stat » et
+# « date » n'ont pas les mêmes options en GNU (Linux) et en BSD (macOS).
+# La détection porte sur « stat -c », inconnu de BSD.
+if stat -c '%Y' . >/dev/null 2>&1; then
+  file_mtime() { stat -c '%Y' "$1"; }
+  fmt_epoch()  { date -d "@$1" '+%Y-%m-%d %H:%M'; }
+else
+  file_mtime() { stat -f '%m' "$1"; }
+  fmt_epoch()  { date -r "$1" '+%Y-%m-%d %H:%M'; }
+fi
+
 # Priorité : environnement > .env (racine) > .ddev/.env > défaut.
 dump_dir="${!ENV_VAR_NAME:-}"
 dump_dir_origin="variable d'environnement"
@@ -120,7 +131,16 @@ else
   done
 
   # mtime<TAB>chemin, trié du plus récent au plus ancien.
-  mapfile -t dumps < <(find "$dump_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -printf '%T@\t%p\n' | sort -rn)
+  # « find -printf » est une extension GNU et « mapfile » un builtin bash 4+ :
+  # ni l'un ni l'autre sur macOS (find BSD, bash 3.2).
+  dumps=()
+  while IFS= read -r entry; do
+    dumps+=("$entry")
+  done < <(
+    find "$dump_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -print \
+      | while IFS= read -r path; do printf '%s\t%s\n' "$(file_mtime "$path")" "$path"; done \
+      | sort -rn
+  )
 
   [ ${#dumps[@]} -gt 0 ] || { echo "Aucun dump trouvé dans $dump_dir" >&2; exit 1; }
 
@@ -129,7 +149,7 @@ else
     for entry in "${dumps[@]}"; do
       path="${entry#*$'\t'}"
       printf '  %s  %s  %s\n' \
-        "$(date -d "@${entry%%$'\t'*}" '+%Y-%m-%d %H:%M')" \
+        "$(fmt_epoch "${entry%%$'\t'*}")" \
         "$(du -h "$path" | cut -f1)" \
         "$(basename "$path")"
     done
@@ -149,7 +169,7 @@ fi
 
 echo "Projet     : ${DDEV_PROJECT:-?}"
 echo "Dossier    : $dump_dir_display"
-echo "Dump       : $(basename "$dump_file") ($(du -h "$dump_file" | cut -f1), $(date -r "$dump_file" '+%Y-%m-%d %H:%M'))"
+echo "Dump       : $(basename "$dump_file") ($(du -h "$dump_file" | cut -f1), $(fmt_epoch "$(file_mtime "$dump_file")"))"
 echo "Actions    : vidage base + import, puis drush deploy, drush cr, drush uli"
 echo
 

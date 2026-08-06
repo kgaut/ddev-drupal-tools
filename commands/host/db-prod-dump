@@ -47,8 +47,17 @@ for v in PROD_USER PROD_HOST PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL; do
   [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PROD_* dans le .env du projet." >&2; exit 1; }
 done
 
+# La redirection distante est entre guillemets (le nom du dump contient une
+# date) : un « ~ » de tête n'y serait pas développé. On passe par $HOME, évalué
+# par le shell du serveur.
+remote_db_path="$PROD_DB_PATH"
+case "$remote_db_path" in
+  "~")   remote_db_path="\$HOME" ;;
+  "~/"*) remote_db_path="\$HOME/${remote_db_path#\~/}" ;;
+esac
+
 echo "Dump de la base de production (${PROD_HOST})…"
 ssh -t -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" \
-  "cd ${PROD_PATH} && ${PROD_DRUSH} sql-dump --gzip > \"${PROD_DB_PATH}/\$(date +%Y-%m-%d_%H-%M-%S)-${PROD_URL}-prod.sql.gz\""
+  "cd ${PROD_PATH} && ${PROD_DRUSH} sql-dump --gzip > \"${remote_db_path}/\$(date +%Y-%m-%d_%H-%M-%S)-${PROD_URL}-prod.sql.gz\""
 echo "Dump terminé."
-ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "ls -alh ${PROD_DB_PATH}"
+ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "ls -alh \"${remote_db_path}\""

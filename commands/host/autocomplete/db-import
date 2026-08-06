@@ -54,6 +54,14 @@ read_env_var() {
   printf '%s' "$value"
 }
 
+# Date de modification d'un fichier : « stat -c » (GNU) est inconnu de BSD
+# (macOS), qui utilise « stat -f » — même détection que db-import.
+if stat -c '%Y' . >/dev/null 2>&1; then
+  file_mtime() { stat -c '%Y' "$1" 2>/dev/null; }
+else
+  file_mtime() { stat -f '%m' "$1" 2>/dev/null; }
+fi
+
 # Priorité : environnement > .env (racine) > .ddev/.env > défaut.
 dump_dir="${!ENV_VAR_NAME:-}"
 if [ -z "$dump_dir" ]; then
@@ -80,7 +88,10 @@ done
 
 # Noms seuls (db-import les résout dans le dossier de dumps), du plus récent au
 # plus ancien — l'ordre est celui présenté par le shell.
-find "$dump_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -printf '%T@\t%f\n' 2>/dev/null \
+# « find -printf » est une extension GNU, absente de BSD : on trie sur le mtime
+# récupéré fichier par fichier.
+find "$dump_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -print 2>/dev/null \
+  | while IFS= read -r path; do printf '%s\t%s\n' "$(file_mtime "$path")" "${path##*/}"; done \
   | sort -rn | cut -f2-
 
 exit 0

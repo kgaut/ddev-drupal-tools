@@ -66,15 +66,54 @@ install_addon() {
   install_addon
   echo "DB_DUMP_DIR=dumps" > .env
   mkdir -p dumps
-  touch -d '2 hours ago' dumps/vieux.sql.gz
+  # « touch -t » (POSIX) plutôt que « touch -d » (GNU) : les tests doivent
+  # pouvoir tourner sur macOS aussi.
+  touch -t 202601011200 dumps/vieux.sql.gz
   touch dumps/recent.sql.gz
   run ddev db-import -l
   [ "$status" -eq 0 ]
   [[ "$output" == *"recent.sql.gz"* ]]
   [[ "$output" == *"vieux.sql.gz"* ]]
+  # la date de chaque dump est affichée (formatage GNU ou BSD selon la plateforme)
+  [[ "$output" == *"2026-01-01 12:00"* ]]
   # le plus récent doit apparaître avant le plus ancien
   reste="${output#*recent.sql.gz}"
   [[ "$reste" == *"vieux.sql.gz"* ]]
+}
+
+@test "portabilité : ni mapfile (bash 4+) ni find -printf (GNU) dans les commandes" {
+  # macOS fournit bash 3.2 et un find BSD : ces deux constructions y échouent.
+  # (Les occurrences en commentaire sont ignorées.)
+  run grep -rnE '^[^#]*(mapfile|readarray|[[:space:]]-printf[[:space:]])' \
+    "$ADDON_DIR/commands"
+  [ "$status" -ne 0 ]
+}
+
+@test "db-preprod-dump : un ~ en tête de PREPROD_DB_PATH est développé côté serveur" {
+  # Appel direct du script (pas via ddev) avec un ssh factice qui se contente
+  # d'afficher la commande distante : ni serveur ni base ne sont nécessaires.
+  mkdir -p "$TESTDIR/bin"
+  cat > "$TESTDIR/bin/ssh" <<'STUB'
+#!/usr/bin/env bash
+for a in "$@"; do last="$a"; done
+echo "$last"
+STUB
+  chmod +x "$TESTDIR/bin/ssh"
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PREPROD_USER=user
+PREPROD_HOST=example.test
+PREPROD_PATH=~/www
+PREPROD_DRUSH=drush
+PREPROD_DB_PATH=~/public_html/files/dumps
+PREPROD_URL=example.test
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-preprod-dump"
+  [ "$status" -eq 0 ]
+  # le tilde est remplacé par $HOME, évalué par le shell distant
+  [[ "$output" == *'"$HOME/public_html/files/dumps/'* ]]
+  [[ "$output" != *'"~/'* ]]
 }
 
 @test "add-on remove supprime toutes les commandes" {

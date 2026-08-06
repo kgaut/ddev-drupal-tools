@@ -4,6 +4,8 @@
 
 ## Unreleased
 
+- Fix `db-import` and its autocompletion on macOS: replace `mapfile` (bash 4+) and `find -printf` / `date -d` (GNU-only) with constructs that also work with the bash 3.2 and BSD tools shipped by macOS (#7)
+- Fix `db-{prod,preprod}-dump` when the remote dump directory starts with `~`: the tilde was left unexpanded inside the quoted remote redirection, it now goes through `$HOME`, evaluated by the server shell (#7)
 - README: recommend ignoring only the add-on manifest file (`.ddev/addon-metadata/drupal-tools/manifest.yaml`) rather than the whole `addon-metadata/` directory, whose project-level manifests are meant to be committed (#6)
 
 ## 0.1.1 — 2026-07-30
