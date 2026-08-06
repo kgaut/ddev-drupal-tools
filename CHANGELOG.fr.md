@@ -2,7 +2,7 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
-## Non publié
+## 0.1.2 — 2026-08-06
 
 - Correction de `db-import` et de son autocomplétion sur macOS : `mapfile` (bash 4+) et `find -printf` / `date -d` (GNU) sont remplacés par des constructions qui fonctionnent aussi avec le bash 3.2 et les outils BSD fournis par macOS (#7)
 - Correction de `db-{prod,preprod}-dump` quand le dossier de dumps distant commence par `~` : le tilde n'était pas développé dans la redirection distante entre guillemets, il passe désormais par `$HOME`, évalué par le shell du serveur (#7)
