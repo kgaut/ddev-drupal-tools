@@ -2,7 +2,7 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
-## Non publié
+## 0.1.3 — 2026-08-31
 
 - Correction de `db-{prod,preprod}-get` qui cherchait les dumps dans le mauvais dossier distant : un `<ENV>_DB_PATH` relatif était résolu depuis le home SSH, alors que `db-{prod,preprod}-dump` le résout depuis `<ENV>_PATH` — les dumps étaient donc écrits dans un dossier et cherchés dans un autre. Les deux commandes s'accordent désormais, et `<ENV>_PATH` devient une variable requise pour `db-*-get` (#8)
 
