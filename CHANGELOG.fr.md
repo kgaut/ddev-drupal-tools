@@ -2,6 +2,10 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
+## Non publié
+
+- Correction de `db-{prod,preprod}-get` qui cherchait les dumps dans le mauvais dossier distant : un `<ENV>_DB_PATH` relatif était résolu depuis le home SSH, alors que `db-{prod,preprod}-dump` le résout depuis `<ENV>_PATH` — les dumps étaient donc écrits dans un dossier et cherchés dans un autre. Les deux commandes s'accordent désormais, et `<ENV>_PATH` devient une variable requise pour `db-*-get` (#8)
+
 ## 0.1.2 — 2026-08-06
 
 - Correction de `db-import` et de son autocomplétion sur macOS : `mapfile` (bash 4+) et `find -printf` / `date -d` (GNU) sont remplacés par des constructions qui fonctionnent aussi avec le bash 3.2 et les outils BSD fournis par macOS (#7)

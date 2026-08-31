@@ -99,11 +99,14 @@ PROD_HOST=my-server.example.org
 PROD_PORT=22                           # optional, defaults to 22
 PROD_PATH=/var/www/myproject           # project root on the server
 PROD_DRUSH=vendor/bin/drush            # drush binary, relative to PROD_PATH
-PROD_DB_PATH=/var/www/myproject/dumps  # dumps directory, on the server
+PROD_DB_PATH=dumps                     # dumps directory, relative to PROD_PATH
 PROD_URL=myproject.example.org         # used to name dump files
 
 # same idea for staging, with the PREPROD_ prefix
 ```
+
+Like `PROD_DRUSH`, a relative `PROD_DB_PATH` is resolved from `PROD_PATH`. Absolute paths
+and paths starting with `~` are used as-is.
 
 ### Local dumps directory
 

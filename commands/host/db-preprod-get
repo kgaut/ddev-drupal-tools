@@ -6,7 +6,9 @@
 ## Example: ddev db-preprod-get
 ##
 ## Serveur/chemins lus dans le .env du projet : PREPROD_USER, PREPROD_HOST,
-## PREPROD_DB_PATH (+ PREPROD_PORT, défaut 22). Destination locale :
+## PREPROD_PATH, PREPROD_DB_PATH (+ PREPROD_PORT, défaut 22). Un PREPROD_DB_PATH
+## relatif est résolu depuis PREPROD_PATH, comme dans db-preprod-dump.
+## Destination locale :
 ## LOCAL_DB_PATH, sinon DB_DUMP_DIR (.env puis .ddev/.env — le dossier de dumps
 ## de db-import), sinon files/dumps.
 
@@ -40,12 +42,12 @@ read_env_var() {
 }
 
 # Variables PREPROD_* : l'environnement prime, puis le .env du projet.
-for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_DB_PATH; do
+for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_PATH PREPROD_DB_PATH; do
   [ -n "${!v:-}" ] && continue
   if val="$(read_env_var "$ENV_FILE" "$v")"; then declare "$v=$val"; fi
 done
 PREPROD_PORT="${PREPROD_PORT:-22}"
-for v in PREPROD_USER PREPROD_HOST PREPROD_DB_PATH; do
+for v in PREPROD_USER PREPROD_HOST PREPROD_PATH PREPROD_DB_PATH; do
   [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PREPROD_* dans le .env du projet." >&2; exit 1; }
 done
 
@@ -61,10 +63,19 @@ case "$LOCAL_DB_PATH" in
   *)  DEST_DIR="${DDEV_APPROOT}/${LOCAL_DB_PATH}" ;;
 esac
 
-DUMP="$(ssh -p "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}" "ls -t ${PREPROD_DB_PATH}/ | grep -E '[.]sql[.]gz$' | head -1")"
-[ -n "$DUMP" ] || { echo "Erreur : aucun dump .sql.gz dans ${PREPROD_HOST}:${PREPROD_DB_PATH}/" >&2; exit 1; }
+# Chemin distant : un PREPROD_DB_PATH relatif est résolu depuis
+# PREPROD_PATH — même convention que db-preprod-dump, qui écrit ses dumps
+# après un « cd PREPROD_PATH ». Les chemins absolus et ceux en « ~ » sont
+# laissés tels quels (développés par le shell distant).
+case "${PREPROD_DB_PATH}" in
+  /*|"~"|"~/"*) REMOTE_DB_DIR="${PREPROD_DB_PATH}" ;;
+  *)            REMOTE_DB_DIR="${PREPROD_PATH}/${PREPROD_DB_PATH}" ;;
+esac
 
-echo "Téléchargement du dump : ${PREPROD_DB_PATH}/${DUMP}"
+DUMP="$(ssh -p "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}" "ls -t ${REMOTE_DB_DIR}/ | grep -E '[.]sql[.]gz$' | head -1")"
+[ -n "$DUMP" ] || { echo "Erreur : aucun dump .sql.gz dans ${PREPROD_HOST}:${REMOTE_DB_DIR}/" >&2; exit 1; }
+
+echo "Téléchargement du dump : ${REMOTE_DB_DIR}/${DUMP}"
 mkdir -p "$DEST_DIR"
-scp -P "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}:${PREPROD_DB_PATH}/${DUMP}" "$DEST_DIR/"
+scp -P "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}:${REMOTE_DB_DIR}/${DUMP}" "$DEST_DIR/"
 echo "Dump téléchargé : ${DEST_DIR}/${DUMP}"

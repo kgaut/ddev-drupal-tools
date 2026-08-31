@@ -6,7 +6,9 @@
 ## Example: ddev db-prod-get
 ##
 ## Serveur/chemins lus dans le .env du projet : PROD_USER, PROD_HOST,
-## PROD_DB_PATH (+ PROD_PORT, défaut 22). Destination locale :
+## PROD_PATH, PROD_DB_PATH (+ PROD_PORT, défaut 22). Un PROD_DB_PATH
+## relatif est résolu depuis PROD_PATH, comme dans db-prod-dump.
+## Destination locale :
 ## LOCAL_DB_PATH, sinon DB_DUMP_DIR (.env puis .ddev/.env — le dossier de dumps
 ## de db-import), sinon files/dumps.
 
@@ -40,12 +42,12 @@ read_env_var() {
 }
 
 # Variables PROD_* : l'environnement prime, puis le .env du projet.
-for v in PROD_USER PROD_HOST PROD_PORT PROD_DB_PATH; do
+for v in PROD_USER PROD_HOST PROD_PORT PROD_PATH PROD_DB_PATH; do
   [ -n "${!v:-}" ] && continue
   if val="$(read_env_var "$ENV_FILE" "$v")"; then declare "$v=$val"; fi
 done
 PROD_PORT="${PROD_PORT:-22}"
-for v in PROD_USER PROD_HOST PROD_DB_PATH; do
+for v in PROD_USER PROD_HOST PROD_PATH PROD_DB_PATH; do
   [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PROD_* dans le .env du projet." >&2; exit 1; }
 done
 
@@ -61,10 +63,19 @@ case "$LOCAL_DB_PATH" in
   *)  DEST_DIR="${DDEV_APPROOT}/${LOCAL_DB_PATH}" ;;
 esac
 
-DUMP="$(ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "ls -t ${PROD_DB_PATH}/ | grep -E '[.]sql[.]gz$' | head -1")"
-[ -n "$DUMP" ] || { echo "Erreur : aucun dump .sql.gz dans ${PROD_HOST}:${PROD_DB_PATH}/" >&2; exit 1; }
+# Chemin distant : un PROD_DB_PATH relatif est résolu depuis
+# PROD_PATH — même convention que db-prod-dump, qui écrit ses dumps
+# après un « cd PROD_PATH ». Les chemins absolus et ceux en « ~ » sont
+# laissés tels quels (développés par le shell distant).
+case "${PROD_DB_PATH}" in
+  /*|"~"|"~/"*) REMOTE_DB_DIR="${PROD_DB_PATH}" ;;
+  *)            REMOTE_DB_DIR="${PROD_PATH}/${PROD_DB_PATH}" ;;
+esac
 
-echo "Téléchargement du dump : ${PROD_DB_PATH}/${DUMP}"
+DUMP="$(ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "ls -t ${REMOTE_DB_DIR}/ | grep -E '[.]sql[.]gz$' | head -1")"
+[ -n "$DUMP" ] || { echo "Erreur : aucun dump .sql.gz dans ${PROD_HOST}:${REMOTE_DB_DIR}/" >&2; exit 1; }
+
+echo "Téléchargement du dump : ${REMOTE_DB_DIR}/${DUMP}"
 mkdir -p "$DEST_DIR"
-scp -P "$PROD_PORT" "${PROD_USER}@${PROD_HOST}:${PROD_DB_PATH}/${DUMP}" "$DEST_DIR/"
+scp -P "$PROD_PORT" "${PROD_USER}@${PROD_HOST}:${REMOTE_DB_DIR}/${DUMP}" "$DEST_DIR/"
 echo "Dump téléchargé : ${DEST_DIR}/${DUMP}"

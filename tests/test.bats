@@ -26,6 +26,22 @@ teardown() {
   [ -n "${TESTDIR:-}" ] && rm -rf "$TESTDIR"
 }
 
+# Stubs ssh/scp : le ssh renvoie un nom de dump fixe (ce que ferait le « ls -t »
+# distant) et le scp se contente d'afficher ses arguments, dont la source
+# distante — c'est là qu'on lit le chemin résolu.
+stub_ssh_scp() {
+  mkdir -p "$TESTDIR/bin"
+  cat > "$TESTDIR/bin/ssh" <<'STUB'
+#!/usr/bin/env bash
+echo "dump.sql.gz"
+STUB
+  cat > "$TESTDIR/bin/scp" <<'STUB'
+#!/usr/bin/env bash
+echo "scp $*"
+STUB
+  chmod +x "$TESTDIR/bin/ssh" "$TESTDIR/bin/scp"
+}
+
 install_addon() {
   run ddev add-on get "$ADDON_DIR"
   [ "$status" -eq 0 ]
@@ -114,6 +130,70 @@ ENVFILE
   # le tilde est remplacé par $HOME, évalué par le shell distant
   [[ "$output" == *'"$HOME/public_html/files/dumps/'* ]]
   [[ "$output" != *'"~/'* ]]
+}
+
+@test "db-prod-get : un PROD_DB_PATH relatif est résolu depuis PROD_PATH" {
+  # Même principe que le test db-preprod-dump ci-dessus : des stubs ssh/scp
+  # rendent le test autonome (ni serveur ni base).
+  stub_ssh_scp
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PROD_USER=user
+PROD_HOST=example.test
+PROD_PATH=/home/user/http/site
+PROD_DB_PATH=db
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/home/user/http/site/db/dump.sql.gz"* ]]
+  # et surtout : jamais le chemin nu, qui viserait le home du serveur
+  [[ "$output" != *"example.test:db/"* ]]
+}
+
+@test "db-prod-get : un PROD_DB_PATH absolu est laissé tel quel" {
+  stub_ssh_scp
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PROD_USER=user
+PROD_HOST=example.test
+PROD_PATH=/home/user/http/site
+PROD_DB_PATH=/var/backups/sql
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/var/backups/sql/dump.sql.gz"* ]]
+  [[ "$output" != *"/home/user/http/site/var/backups"* ]]
+}
+
+@test "db-preprod-get : un PREPROD_DB_PATH en ~ est laissé au shell distant" {
+  stub_ssh_scp
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PREPROD_USER=user
+PREPROD_HOST=example.test
+PREPROD_PATH=/home/user/http/site
+PREPROD_DB_PATH=~/dumps
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-preprod-get"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"~/dumps/dump.sql.gz"* ]]
+  [[ "$output" != *"/home/user/http/site/~"* ]]
+}
+
+@test "db-prod-get échoue explicitement quand PROD_PATH manque" {
+  install_addon
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PROD_USER=user
+PROD_HOST=example.test
+PROD_DB_PATH=db
+ENVFILE
+  run ddev db-prod-get
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"PROD_PATH"* ]]
+  [[ "$output" == *"manquant"* ]]
 }
 
 @test "add-on remove supprime toutes les commandes" {

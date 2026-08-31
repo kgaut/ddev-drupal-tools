@@ -102,11 +102,14 @@ PROD_HOST=mon-serveur.example.org
 PROD_PORT=22                           # optionnel, défaut 22
 PROD_PATH=/var/www/monprojet           # racine du projet sur le serveur
 PROD_DRUSH=vendor/bin/drush            # binaire drush, relatif à PROD_PATH
-PROD_DB_PATH=/var/www/monprojet/dumps  # dossier des dumps, sur le serveur
+PROD_DB_PATH=dumps                     # dossier des dumps, relatif à PROD_PATH
 PROD_URL=monprojet.example.org         # sert à nommer les fichiers de dump
 
 # même principe pour la préprod, préfixe PREPROD_
 ```
+
+Comme `PROD_DRUSH`, un `PROD_DB_PATH` relatif est résolu depuis `PROD_PATH`. Les chemins
+absolus et ceux commençant par `~` sont utilisés tels quels.
 
 ### Dossier de dumps local
 
