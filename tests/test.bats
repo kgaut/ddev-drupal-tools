@@ -416,6 +416,26 @@ ENVFILE
   [[ "$output" != *"depuis-env.test"* ]]
 }
 
+@test "db-preprod-dump : sans PREPROD_DRUSH, un projet non Drupal a un message explicite" {
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PREPROD_USER=user
+PREPROD_HOST=example.test
+PREPROD_PATH=/home/user/http/site
+PREPROD_DB_PATH=db
+PREPROD_URL=example.test
+ENVFILE
+  export DDEV_APPROOT="$PROJDIR"
+  DDEV_PROJECT_TYPE=symfony run bash "$ADDON_DIR/commands/host/db-preprod-dump"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"réservé aux projets Drupal"* ]]
+  [[ "$output" == *"symfony"* ]]
+  # un projet Drupal garde le message générique
+  DDEV_PROJECT_TYPE=drupal11 run bash "$ADDON_DIR/commands/host/db-preprod-dump"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"PREPROD_DRUSH manquant"* ]]
+  [[ "$output" != *"réservé"* ]]
+}
+
 @test "db-prod-get échoue explicitement quand PROD_PATH manque" {
   install_addon
   cat > "$PROJDIR/.env" <<'ENVFILE'

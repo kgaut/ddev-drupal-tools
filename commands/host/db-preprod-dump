@@ -8,7 +8,8 @@
 ##
 ## Serveur/chemins lus dans le .env.local ou le .env du projet : PREPROD_USER,
 ## PREPROD_HOST, PREPROD_PATH, PREPROD_DRUSH, PREPROD_DB_PATH, PREPROD_URL (+ PREPROD_PORT, défaut 22).
-## Un PREPROD_DB_PATH relatif est résolu depuis PREPROD_PATH.
+## Un PREPROD_DB_PATH relatif est résolu depuis PREPROD_PATH. Passe par drush : réservé
+## aux projets Drupal.
 
 set -euo pipefail
 
@@ -51,7 +52,16 @@ for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_PATH PREPROD_DRUSH PREPR
 done
 PREPROD_PORT="${PREPROD_PORT:-22}"
 for v in PREPROD_USER PREPROD_HOST PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PREPROD_URL; do
-  [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PREPROD_* dans le .env (ou .env.local) du projet." >&2; exit 1; }
+  [ -n "${!v:-}" ] && continue
+  # Sans drush, un projet non Drupal n'a rien à configurer : le dire.
+  if [ "$v" = PREPROD_DRUSH ]; then
+    case "${DDEV_PROJECT_TYPE:-}" in
+      drupal|drupal[0-9]*) ;;
+      *) echo "Erreur : PREPROD_DRUSH manquant — db-preprod-dump passe par « drush sql-dump », réservé aux projets Drupal (type DDEV de ce projet : ${DDEV_PROJECT_TYPE:-inconnu})." >&2; exit 1 ;;
+    esac
+  fi
+  echo "Erreur : $v manquant — définir les variables PREPROD_* dans le .env (ou .env.local) du projet." >&2
+  exit 1
 done
 
 # La redirection distante est entre guillemets (le nom du dump contient une
