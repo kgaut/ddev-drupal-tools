@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Vide la base, importe le dump le plus récent (files/dumps par défaut), puis drush deploy + cr + uli
+## Description: Vide la base, importe le dump le plus récent (files/dumps par défaut), puis drush deploy + cr + uli (Drupal) ou cache:clear (Symfony)
 ## Usage: db-import [-y] [-n] [-l] [fichier]
 ## Example: "ddev db-import" or "ddev db-import dev_2026-04-14.sql.gz" or "ddev db-import files/dumps/dev_2026-04-14.sql.gz" or "ddev db-import -l" or "ddev db-import -n" or "ddev db-import -y"
 ## Flags: [{"Name":"yes","Shorthand":"y","Type":"bool","Usage":"Ne pas demander de confirmation"},{"Name":"dry-run","Shorthand":"n","Type":"bool","Usage":"Affiche ce qui serait fait, sans rien exécuter"},{"Name":"list","Shorthand":"l","Type":"bool","Usage":"Liste les dumps disponibles, du plus récent au plus ancien"},{"Name":"file","Shorthand":"f","Type":"string","Usage":"Nom ou chemin d'un dump précis à importer"}]
@@ -9,6 +9,11 @@
 ## Le fichier passé en argument est cherché tel quel (chemin absolu ou relatif
 ## à la racine du projet), puis dans le dossier de dumps : un simple nom de
 ## fichier suffit donc.
+##
+## Après l'import, les étapes dépendent du type DDEV du projet (clé « type » du
+## .ddev/config.yaml) : drupal* → drush deploy, cr, uli ; symfony → console
+## cache:clear ; autres types → aucune. Les étapes propres à un projet se
+## déclarent dans un hook post-import-db de son .ddev/config.yaml.
 ##
 ## Le dossier des dumps est "files/dumps" par défaut. Surchargeable par projet
 ## via la variable DB_DUMP_DIR dans le .env du projet (ou .ddev/.env) :
@@ -159,6 +164,22 @@ else
   dump_file="${dumps[0]#*$'\t'}"
 fi
 
+# Étapes après l'import, selon la clé « type » du .ddev/config.yaml, que DDEV
+# transmet dans DDEV_PROJECT_TYPE. Même découpage que DDEV, qui ne fournit
+# « ddev drush » qu'aux types drupal* et « ddev console » qu'au type symfony.
+# Chaque étape est une commande ddev, découpée en mots à l'exécution.
+post_steps=()
+case "${DDEV_PROJECT_TYPE:-}" in
+  drupal|drupal[0-9]*) post_steps=("drush deploy" "drush cr" "drush uli") ;;
+  symfony)             post_steps=("console cache:clear") ;;
+esac
+# « ${tableau[@]+…} » : un tableau vide sous « set -u » fait échouer bash 3.2.
+steps_label=""
+for step in ${post_steps[@]+"${post_steps[@]}"}; do
+  steps_label="${steps_label:+$steps_label, }$step"
+done
+no_steps_hint="Aucune étape après l'import pour le type « ${DDEV_PROJECT_TYPE:-inconnu} » : les déclarer au besoin dans un hook post-import-db du .ddev/config.yaml."
+
 # Le dump peut venir d'ailleurs que du dossier de dumps (chemin explicite).
 dump_parent="$(cd "$(dirname "$dump_file")" && pwd)"
 if [ -d "$dump_dir" ] && [ "$dump_parent" = "$(cd "$dump_dir" && pwd)" ]; then
@@ -167,18 +188,19 @@ else
   dump_dir_display="$dump_parent"
 fi
 
-echo "Projet     : ${DDEV_PROJECT:-?}"
+echo "Projet     : ${DDEV_PROJECT:-?} (type ${DDEV_PROJECT_TYPE:-inconnu})"
 echo "Dossier    : $dump_dir_display"
 echo "Dump       : $(basename "$dump_file") ($(du -h "$dump_file" | cut -f1), $(fmt_epoch "$(file_mtime "$dump_file")"))"
-echo "Actions    : vidage base + import, puis drush deploy, drush cr, drush uli"
+echo "Actions    : vidage base + import${steps_label:+, puis $steps_label}"
 echo
 
 if $dry_run; then
   echo "[dry-run] Commandes qui seraient exécutées :"
   echo "  ddev import-db --file=$dump_file"
-  echo "  ddev drush deploy"
-  echo "  ddev drush cr"
-  echo "  ddev drush uli"
+  for step in ${post_steps[@]+"${post_steps[@]}"}; do
+    echo "  ddev $step"
+  done
+  [ -n "$steps_label" ] || echo "$no_steps_hint"
   exit 0
 fi
 
@@ -194,11 +216,9 @@ fi
 echo "==> Vidage de la base et import du dump"
 ddev import-db --file="$dump_file"
 
-echo "==> drush deploy"
-ddev drush deploy
-
-echo "==> drush cr"
-ddev drush cr
-
-echo "==> drush uli"
-ddev drush uli
+for step in ${post_steps[@]+"${post_steps[@]}"}; do
+  echo "==> $step"
+  # shellcheck disable=SC2086  # découpage voulu : « drush cr » → ddev drush cr
+  ddev $step
+done
+[ -n "$steps_label" ] || echo "$no_steps_hint"

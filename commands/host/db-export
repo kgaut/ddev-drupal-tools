@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Vide les caches puis exporte la base dans files/dumps/<date>-<projet>-dev.sql.gz
+## Description: Exporte la base dans files/dumps/<date>-<projet>-dev.sql.gz (Drupal : drush cr avant)
 ## Usage: db-export [--no-gzip] [-n] [--no-cr]
 ## Example: "ddev db-export" or "ddev db-export --no-gzip" or "ddev db-export -n" or "ddev db-export --no-cr"
-## Flags: [{"Name":"no-gzip","Type":"bool","Usage":"Exporte en .sql non compressé"},{"Name":"dry-run","Shorthand":"n","Type":"bool","Usage":"Affiche ce qui serait fait, sans rien exécuter"},{"Name":"no-cr","Type":"bool","Usage":"Ne pas vider les caches avant l'export"}]
+## Flags: [{"Name":"no-gzip","Type":"bool","Usage":"Exporte en .sql non compressé"},{"Name":"dry-run","Shorthand":"n","Type":"bool","Usage":"Affiche ce qui serait fait, sans rien exécuter"},{"Name":"no-cr","Type":"bool","Usage":"Ne pas vider les caches avant l'export (Drupal)"}]
 ##
-## Pendant de "ddev db-import". Le dossier de destination est "files/dumps" par
-## défaut, surchargeable par projet via DB_DUMP_DIR dans le .env (ou .ddev/.env) :
+## Pendant de "ddev db-import". Les caches ne sont vidés (drush cr) que pour les
+## projets Drupal (clé « type » du .ddev/config.yaml) : ce sont les seuls dont
+## les caches sont en base.
+##
+## Le dossier de destination est "files/dumps" par défaut, surchargeable par
+## projet via DB_DUMP_DIR dans le .env (ou .ddev/.env) :
 ##   DB_DUMP_DIR=dumps
 ##   DB_DUMP_DIR=/chemin/absolu/vers/dumps
 
@@ -34,6 +38,14 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# Vidage des caches : Drupal seulement, dont les caches sont en base (celui de
+# Symfony, par exemple, est sur disque et n'alourdit pas le dump). Le type est
+# la clé « type » du .ddev/config.yaml, transmise par DDEV.
+case "${DDEV_PROJECT_TYPE:-}" in
+  drupal|drupal[0-9]*) ;;
+  *) do_cr=false ;;
+esac
 
 # Lit une variable dans un fichier .env sans le sourcer (pas d'exécution de code).
 # Dupliqué depuis db-import pour garder chaque commande autonome.
@@ -86,7 +98,7 @@ filename="$(date +%Y-%m-%d_%H-%M-%S)-${sitename}-${SUFFIX}.sql"
 $gzip_it && filename="${filename}.gz"
 target="$dump_dir/$filename"
 
-echo "Projet     : ${DDEV_PROJECT:-?}"
+echo "Projet     : ${DDEV_PROJECT:-?} (type ${DDEV_PROJECT_TYPE:-inconnu})"
 echo "Dossier    : $dump_dir ($dump_dir_origin)"
 echo "Fichier    : $filename"
 echo "Actions    : $($do_cr && echo "drush cr, puis " || true)export de la base"

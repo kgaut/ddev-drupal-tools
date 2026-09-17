@@ -2,6 +2,10 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
+## Non publié
+
+- `db-import` et `db-export` suivent le type DDEV du projet (clé `type` du `.ddev/config.yaml`) : étapes `drush` inchangées pour Drupal, `console cache:clear` après un import pour Symfony, aucune étape automatique pour les autres types, dont les étapes propres se déclarent dans les hooks `post-import-db` de DDEV. Voir l'ADR `0009-commandes-etapes-selon-le-type-ddev` (#9)
+
 ## 0.2.0 — 2026-09-17
 
 - Correction de `db-{prod,preprod}-dump` qui sortait en code 2 après un dump réussi : le listage final du dossier de dumps se lançait depuis le home SSH, où un `<ENV>_DB_PATH` relatif n'existe pas. Il se lance désormais depuis `<ENV>_PATH`, comme le dump lui-même (#10)

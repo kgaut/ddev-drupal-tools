@@ -61,6 +61,25 @@ STUB
   chmod +x "$TESTDIR/bin/ssh" "$TESTDIR/bin/scp"
 }
 
+# Stub ddev, pour appeler les scripts directement : chaque appel est noté dans
+# $TESTDIR/ddev.log, et « export-db --file=… » crée le fichier attendu.
+stub_ddev() {
+  mkdir -p "$TESTDIR/bin"
+  cat > "$TESTDIR/bin/ddev" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >> "$TESTDIR/ddev.log"
+if [ "$1" = export-db ]; then
+  for a in "$@"; do case "$a" in --file=*) : > "${a#--file=}" ;; esac; done
+fi
+exit 0
+STUB
+  chmod +x "$TESTDIR/bin/ddev"
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  mkdir -p "$PROJDIR/files/dumps"
+  touch "$PROJDIR/files/dumps/dump.sql.gz"
+}
+
 install_addon() {
   run ddev add-on get "$ADDON_DIR"
   [ "$status" -eq 0 ]
@@ -305,6 +324,66 @@ ENVFILE
   run bash "$ADDON_DIR/commands/host/db-prod-get"
   [ "$status" -eq 1 ]
   [[ "$output" == *"aucun dump .sql.gz"* ]]
+}
+
+@test "db-import : un projet Drupal garde drush deploy, cr et uli" {
+  stub_ddev
+  DDEV_PROJECT_TYPE=drupal11 run bash "$ADDON_DIR/commands/host/db-import" -y
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TESTDIR/ddev.log")" = "import-db --file=$PROJDIR/files/dumps/dump.sql.gz
+drush deploy
+drush cr
+drush uli" ]
+}
+
+@test "db-import : un projet symfony n'a que console cache:clear, sans drush" {
+  stub_ddev
+  DDEV_PROJECT_TYPE=symfony run bash "$ADDON_DIR/commands/host/db-import" -y
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TESTDIR/ddev.log")" = "import-db --file=$PROJDIR/files/dumps/dump.sql.gz
+console cache:clear" ]
+}
+
+@test "db-import : un autre type n'a aucune étape, avec renvoi au hook post-import-db" {
+  stub_ddev
+  DDEV_PROJECT_TYPE=php run bash "$ADDON_DIR/commands/host/db-import" -y
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TESTDIR/ddev.log")" = "import-db --file=$PROJDIR/files/dumps/dump.sql.gz" ]
+  [[ "$output" == *"post-import-db"* ]]
+}
+
+@test "db-import -n : le dry-run liste les étapes du type, sans rien lancer" {
+  stub_ddev
+  DDEV_PROJECT_TYPE=symfony run bash "$ADDON_DIR/commands/host/db-import" -n
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"type symfony"* ]]
+  [[ "$output" == *"ddev console cache:clear"* ]]
+  [[ "$output" != *"drush"* ]]
+  [ ! -e "$TESTDIR/ddev.log" ]
+}
+
+@test "db-export : drush cr pour Drupal seulement" {
+  stub_ddev
+  DDEV_PROJECT_TYPE=drupal10 run bash "$ADDON_DIR/commands/host/db-export"
+  [ "$status" -eq 0 ]
+  [ "$(sed -n 1p "$TESTDIR/ddev.log")" = "drush cr" ]
+  rm "$TESTDIR/ddev.log"
+  DDEV_PROJECT_TYPE=symfony run bash "$ADDON_DIR/commands/host/db-export"
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "$TESTDIR/ddev.log")" -eq 1 ]
+  grep -q '^export-db ' "$TESTDIR/ddev.log"
+}
+
+@test "le type DDEV du projet arrive jusqu'à db-import (projet symfony)" {
+  install_addon
+  ddev config --project-type=symfony >/dev/null 2>&1
+  mkdir -p files/dumps
+  touch files/dumps/dump.sql.gz
+  run ddev db-import -n
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"type symfony"* ]]
+  [[ "$output" == *"ddev console cache:clear"* ]]
+  [[ "$output" != *"drush"* ]]
 }
 
 @test "db-prod-get échoue explicitement quand PROD_PATH manque" {

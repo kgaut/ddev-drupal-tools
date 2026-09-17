@@ -3,7 +3,9 @@
 > 🇬🇧 [English version](README.md)
 
 Addon [DDEV](https://ddev.com/) **global** pour projets Drupal : gestion des dumps de base de
-données en local et rapatriement depuis les serveurs de production / pré-production.
+données en local et rapatriement depuis les serveurs de production / pré-production. Les
+commandes locales conviennent aussi aux projets Symfony et aux autres types de projet (voir
+[Types de projet](#types-de-projet)).
 
 Les commandes sont installées dans le dossier DDEV global (`~/.ddev/commands/host/`) et sont
 donc disponibles dans **tous** les projets DDEV de la machine.
@@ -71,17 +73,42 @@ manifeste.
 
 | Commande | Description |
 | --- | --- |
-| `ddev db-import [dump]` | Vide la base, importe un dump (le plus récent du dossier de dumps par défaut), puis `drush deploy`, `drush cr`, `drush uli`. Options : `-l` (lister les dumps), `-n` (dry-run), `-y` (sans confirmation). |
-| `ddev db-export` | Vide les caches puis exporte la base vers `<dossier>/<date>-<projet>-dev.sql.gz`. Options : `--no-gzip`, `--no-cr`, `-n`. |
+| `ddev db-import [dump]` | Vide la base, importe un dump (le plus récent du dossier de dumps par défaut), puis lance les étapes du type de projet (Drupal : `drush deploy`, `drush cr`, `drush uli`). Options : `-l` (lister les dumps), `-n` (dry-run), `-y` (sans confirmation). |
+| `ddev db-export` | Exporte la base vers `<dossier>/<date>-<projet>-dev.sql.gz`, après vidage des caches pour un projet Drupal. Options : `--no-gzip`, `--no-cr`, `-n`. |
 
 Formats gérés par `db-import` : `.sql`, `.sql.gz`, `.sql.bz2`, `.sql.xz`, `.mysql`, `.mysql.gz`, `.zip`, `.tgz`, `.tar.gz`.
 Le nom de dump s'autocomplète (`ddev db-import <tab>`), du plus récent au plus ancien.
+
+### Types de projet
+
+Les étapes qui entourent un import ou un export suivent le type DDEV du projet (clé `type` du
+`.ddev/config.yaml`), de la même façon que DDEV ne fournit `ddev drush` qu'aux projets Drupal
+et `ddev console` qu'aux projets Symfony :
+
+| Type DDEV | `db-import`, après l'import | `db-export`, avant l'export |
+| --- | --- | --- |
+| `drupal`, `drupal6` … `drupal12` | `drush deploy`, `drush cr`, `drush uli` | `drush cr` (`--no-cr` pour s'en passer) |
+| `symfony` | `console cache:clear` | — |
+| autre type | — | — |
+
+Les étapes propres à un projet se déclarent dans les hooks de DDEV, que `ddev import-db`
+(utilisé par `db-import`) déclenche de toute façon :
+
+```yaml
+# .ddev/config.yaml
+hooks:
+  post-import-db:
+    - exec: wp cache flush   # par exemple, un projet WordPress
+```
+
+`db-{prod,preprod}-dump` passe par `drush sql-dump` sur le serveur : il ne sert qu'aux projets
+Drupal.
 
 ### Serveur distant (production / pré-production)
 
 | Commande | Description |
 | --- | --- |
-| `ddev db-prod-dump` | `drush sql-dump --gzip` sur le serveur, fichier horodaté dans `PROD_DB_PATH` (le dump reste sur le serveur). |
+| `ddev db-prod-dump` | `drush sql-dump --gzip` sur le serveur, fichier horodaté dans `PROD_DB_PATH` (le dump reste sur le serveur). Drupal uniquement. |
 | `ddev db-prod-get` | Rapatrie le dump distant le plus récent dans le dossier de dumps local, affiche sa date et avertit s'il a plus de 24 h. |
 | `ddev db-prod-import` | Enchaîne `db-prod-get` + `db-import`. |
 | `ddev ssh-prod` | Session SSH sur le serveur de production du projet courant. |
