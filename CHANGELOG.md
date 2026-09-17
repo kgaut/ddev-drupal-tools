@@ -2,7 +2,7 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
-## Unreleased
+## 0.4.0 — 2026-09-17
 
 - `db-{prod,preprod}-get` can dump without drush: with `<ENV>_DB_NAME` and no `<ENV>_DB_PATH`, it streams a gzipped `mysqldump` (credentials from the server's `~/.my.cnf`) straight to the local dumps directory, keeping the file only once the archive and mysqldump's final line are checked; `db-{prod,preprod}-import` follows, and `db-{prod,preprod}-dump` points there when drush is missing. See ADR `0011-commandes-dump-mysqldump-en-flux` (#11)
 
