@@ -52,7 +52,9 @@ for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_PATH PREPROD_DRUSH PREPR
   if val="$(read_project_var "$v")"; then declare "$v=$val"; fi
 done
 PREPROD_PORT="${PREPROD_PORT:-22}"
-for v in PREPROD_USER PREPROD_HOST PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PREPROD_URL; do
+# PREPROD_DRUSH avant PREPROD_PATH : sans drush, le renvoi vers db-preprod-get vaut aussi
+# pour un projet en mode PREPROD_DB_NAME, qui n'a pas besoin de PREPROD_PATH.
+for v in PREPROD_USER PREPROD_HOST PREPROD_DRUSH PREPROD_PATH PREPROD_DB_PATH PREPROD_URL; do
   [ -n "${!v:-}" ] && continue
   # Sans drush, pas de dump sur le serveur : orienter vers ce qui existe.
   if [ "$v" = PREPROD_DRUSH ]; then

@@ -537,6 +537,8 @@ ENVFILE
   # pipefail côté serveur signale l'échec ; sans lui (dash ancien), c'est
   # l'absence de la ligne de fin
   [[ "$output" == *"le dump a échoué"* || "$output" == *"dump incomplet"* ]]
+  # l'échec renvoie aussi vers le nom de la base (MariaDB : « Access denied » pour une base inexistante)
+  [[ "$output" == *"dump incomplet"* || "$output" == *"PROD_DB_NAME (appdb"* ]]
   [ -d "$PROJDIR/files/dumps" ]
   [ -z "$(ls -A "$PROJDIR/files/dumps")" ]
 }
@@ -584,6 +586,15 @@ ENVFILE
   DDEV_PROJECT_TYPE=symfony run bash "$ADDON_DIR/commands/host/db-prod-dump"
   [ "$status" -eq 1 ]
   [[ "$output" == *"ddev db-prod-get"* ]]
+}
+
+@test "db-preprod-dump : sans drush ni PREPROD_PATH, le mode PREPROD_DB_NAME renvoie vers db-preprod-get" {
+  printf 'PREPROD_USER=user\nPREPROD_HOST=example.test\nPREPROD_DB_NAME=appdb_pp\n' > "$PROJDIR/.env"
+  export DDEV_APPROOT="$PROJDIR"
+  DDEV_PROJECT_TYPE=symfony run bash "$ADDON_DIR/commands/host/db-preprod-dump"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"ddev db-preprod-get"* ]]
+  [[ "$output" != *"PREPROD_PATH manquant"* ]]
 }
 
 @test "db-import ignore un dump en cours de téléchargement (.part)" {

@@ -137,7 +137,8 @@ if [ -z "$PROD_DB_PATH" ]; then
   if ! ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" \
     "if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi; nice -n 10 mysqldump ${MYSQLDUMP_OPTS} '${PROD_DB_NAME}' | nice -n 10 gzip" \
     > "$part"; then
-    echo "Erreur : le dump a échoué sur ${PROD_HOST} (identifiants mysqldump dans le ~/.my.cnf du compte SSH ?)." >&2
+    # MariaDB répond « Access denied » (1044) aussi pour une base inexistante.
+    echo "Erreur : le dump a échoué sur ${PROD_HOST}. Vérifier PROD_DB_NAME (${PROD_DB_NAME} : base inexistante ou non autorisée ?) et les identifiants du ~/.my.cnf du compte SSH." >&2
     exit 1
   fi
   # Contrôles : archive intègre, et dernière ligne écrite par mysqldump en fin

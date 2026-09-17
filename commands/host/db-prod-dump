@@ -52,7 +52,9 @@ for v in PROD_USER PROD_HOST PROD_PORT PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_UR
   if val="$(read_project_var "$v")"; then declare "$v=$val"; fi
 done
 PROD_PORT="${PROD_PORT:-22}"
-for v in PROD_USER PROD_HOST PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL; do
+# PROD_DRUSH avant PROD_PATH : sans drush, le renvoi vers db-prod-get vaut aussi
+# pour un projet en mode PROD_DB_NAME, qui n'a pas besoin de PROD_PATH.
+for v in PROD_USER PROD_HOST PROD_DRUSH PROD_PATH PROD_DB_PATH PROD_URL; do
   [ -n "${!v:-}" ] && continue
   # Sans drush, pas de dump sur le serveur : orienter vers ce qui existe.
   if [ "$v" = PROD_DRUSH ]; then
