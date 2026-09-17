@@ -1,0 +1,2 @@
+# Notes locales par ticket (docs/<id>-<description>.md), jamais versionnées
+/docs/[0-9]*-*.md
