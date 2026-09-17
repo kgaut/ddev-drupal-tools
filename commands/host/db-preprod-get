@@ -6,17 +6,15 @@
 ## Example: ddev db-preprod-get
 ## Flags: []
 ##
-## Serveur/chemins lus dans le .env du projet : PREPROD_USER, PREPROD_HOST,
-## PREPROD_PATH, PREPROD_DB_PATH (+ PREPROD_PORT, défaut 22). Un PREPROD_DB_PATH
+## Serveur/chemins lus dans le .env.local ou le .env du projet : PREPROD_USER,
+## PREPROD_HOST, PREPROD_PATH, PREPROD_DB_PATH (+ PREPROD_PORT, défaut 22). Un PREPROD_DB_PATH
 ## relatif est résolu depuis PREPROD_PATH, comme dans db-preprod-dump.
-## Destination locale :
-## LOCAL_DB_PATH, sinon DB_DUMP_DIR (.env puis .ddev/.env — le dossier de dumps
-## de db-import), sinon files/dumps.
+## Destination locale : LOCAL_DB_PATH, sinon DB_DUMP_DIR (.env.local, .env puis
+## .ddev/.env — le dossier de dumps de db-import), sinon files/dumps.
 ## Affiche la date du dump récupéré, et avertit s'il a plus de 24 h.
 
 set -euo pipefail
 
-ENV_FILE="${DDEV_APPROOT}/.env"
 # Au-delà, le dump est signalé comme ancien (sans bloquer).
 MAX_AGE_HOURS=24
 
@@ -63,21 +61,29 @@ read_env_var() {
   printf '%s' "$value"
 }
 
-# Variables PREPROD_* : l'environnement prime, puis le .env du projet.
+# Première valeur trouvée dans le .env.local, puis dans le .env du projet. Le
+# .env.local passe avant (convention Symfony : le .env peut être versionné, les
+# valeurs locales vont dans .env.local).
+read_project_var() {
+  read_env_var "${DDEV_APPROOT}/.env.local" "$1" || read_env_var "${DDEV_APPROOT}/.env" "$1"
+}
+
+# Variables PREPROD_* : l'environnement prime, puis le .env.local et le .env.
 for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_PATH PREPROD_DB_PATH; do
   [ -n "${!v:-}" ] && continue
-  if val="$(read_env_var "$ENV_FILE" "$v")"; then declare "$v=$val"; fi
+  if val="$(read_project_var "$v")"; then declare "$v=$val"; fi
 done
 PREPROD_PORT="${PREPROD_PORT:-22}"
 for v in PREPROD_USER PREPROD_HOST PREPROD_PATH PREPROD_DB_PATH; do
-  [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PREPROD_* dans le .env du projet." >&2; exit 1; }
+  [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PREPROD_* dans le .env (ou .env.local) du projet." >&2; exit 1; }
 done
 
-# Destination locale : LOCAL_DB_PATH > DB_DUMP_DIR (.env, .ddev/.env) > files/dumps.
+# Destination locale : LOCAL_DB_PATH > DB_DUMP_DIR (.env.local, .env, .ddev/.env)
+# > files/dumps.
 LOCAL_DB_PATH="${LOCAL_DB_PATH:-}"
-[ -n "$LOCAL_DB_PATH" ] || LOCAL_DB_PATH="$(read_env_var "$ENV_FILE" LOCAL_DB_PATH || true)"
+[ -n "$LOCAL_DB_PATH" ] || LOCAL_DB_PATH="$(read_project_var LOCAL_DB_PATH || true)"
 [ -n "$LOCAL_DB_PATH" ] || LOCAL_DB_PATH="${DB_DUMP_DIR:-}"
-[ -n "$LOCAL_DB_PATH" ] || LOCAL_DB_PATH="$(read_env_var "$ENV_FILE" DB_DUMP_DIR || true)"
+[ -n "$LOCAL_DB_PATH" ] || LOCAL_DB_PATH="$(read_project_var DB_DUMP_DIR || true)"
 [ -n "$LOCAL_DB_PATH" ] || LOCAL_DB_PATH="$(read_env_var "${DDEV_APPROOT}/.ddev/.env" DB_DUMP_DIR || true)"
 [ -n "$LOCAL_DB_PATH" ] || LOCAL_DB_PATH="files/dumps"
 case "$LOCAL_DB_PATH" in

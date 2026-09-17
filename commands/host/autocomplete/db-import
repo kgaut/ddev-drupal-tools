@@ -10,7 +10,7 @@
 # sur stdout, une par ligne — ddev filtre lui-même selon le préfixe déjà tapé.
 #
 # Résolution du dossier de dumps : identique à db-import
-# (environnement > .env > .ddev/.env > files/dumps).
+# (environnement > .env.local > .env > .ddev/.env > files/dumps).
 # Contexte de complétion : on ne doit jamais échouer bruyamment -> pas de
 # set -e, sortie silencieuse (exit 0 sans suggestion) au moindre souci.
 
@@ -62,10 +62,11 @@ else
   file_mtime() { stat -f '%m' "$1" 2>/dev/null; }
 fi
 
-# Priorité : environnement > .env (racine) > .ddev/.env > défaut.
+# Priorité : environnement > .env.local > .env (racine) > .ddev/.env > défaut.
 dump_dir="${!ENV_VAR_NAME:-}"
 if [ -z "$dump_dir" ]; then
-  dump_dir="$(read_env_var "$APPROOT/.env" "$ENV_VAR_NAME")" \
+  dump_dir="$(read_env_var "$APPROOT/.env.local" "$ENV_VAR_NAME")" \
+    || dump_dir="$(read_env_var "$APPROOT/.env" "$ENV_VAR_NAME")" \
     || dump_dir="$(read_env_var "$APPROOT/.ddev/.env" "$ENV_VAR_NAME")" \
     || dump_dir="$DEFAULT_DUMP_DIR"
 fi

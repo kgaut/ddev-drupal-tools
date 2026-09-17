@@ -116,12 +116,14 @@ Every command prints its help with `ddev <command> -h`, without running anything
 
 ## Configuration
 
-Everything is configured in the `.env` file at each project's root (never sourced: variables
-are extracted with `grep`). The commands are visible everywhere but only useful in configured
-projects — a missing variable produces an explicit error.
+Everything is configured in the `.env.local` or `.env` file at each project's root (never
+sourced: variables are extracted with `grep`). `.env.local` comes first: Symfony projects commit
+their `.env` and keep local values, such as server access, in `.env.local`. The commands are
+visible everywhere but only useful in configured projects — a missing variable produces an
+explicit error.
 
 ```bash
-# project .env
+# project .env.local (or .env)
 PROD_USER=kevin
 PROD_HOST=my-server.example.org
 PROD_PORT=22                           # optional, defaults to 22
@@ -139,7 +141,8 @@ and paths starting with `~` are used as-is.
 ### Local dumps directory
 
 Shared by all commands. Defaults to `files/dumps` (relative to the project root), overridable
-with `DB_DUMP_DIR` (project `.env`, then `.ddev/.env`), as a relative or absolute path. The
+with `DB_DUMP_DIR` (project `.env.local`, then `.env`, then `.ddev/.env`), as a relative or
+absolute path. The
 `db-{prod,preprod}-get` commands also honor `LOCAL_DB_PATH`, which takes precedence over
 `DB_DUMP_DIR`.
 

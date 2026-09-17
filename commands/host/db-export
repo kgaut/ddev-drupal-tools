@@ -11,7 +11,7 @@
 ## les caches sont en base.
 ##
 ## Le dossier de destination est "files/dumps" par défaut, surchargeable par
-## projet via DB_DUMP_DIR dans le .env (ou .ddev/.env) :
+## projet via DB_DUMP_DIR dans le .env.local, le .env ou le .ddev/.env :
 ##   DB_DUMP_DIR=dumps
 ##   DB_DUMP_DIR=/chemin/absolu/vers/dumps
 
@@ -71,11 +71,15 @@ read_env_var() {
   printf '%s' "$value"
 }
 
-# Priorité : environnement > .env (racine) > .ddev/.env > défaut.
+# Priorité : environnement > .env.local > .env (racine) > .ddev/.env > défaut.
+# Le .env.local passe avant le .env (convention Symfony : le .env peut être
+# versionné, les valeurs locales vont dans .env.local).
 dump_dir="${!ENV_VAR_NAME:-}"
 dump_dir_origin="variable d'environnement"
 if [ -z "$dump_dir" ]; then
-  if dump_dir="$(read_env_var "$APPROOT/.env" "$ENV_VAR_NAME")"; then
+  if dump_dir="$(read_env_var "$APPROOT/.env.local" "$ENV_VAR_NAME")"; then
+    dump_dir_origin=".env.local"
+  elif dump_dir="$(read_env_var "$APPROOT/.env" "$ENV_VAR_NAME")"; then
     dump_dir_origin=".env"
   elif dump_dir="$(read_env_var "$APPROOT/.ddev/.env" "$ENV_VAR_NAME")"; then
     dump_dir_origin=".ddev/.env"

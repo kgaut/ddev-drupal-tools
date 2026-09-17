@@ -386,6 +386,36 @@ console cache:clear" ]
   [[ "$output" != *"drush"* ]]
 }
 
+@test ".env.local passe avant .env pour DB_DUMP_DIR" {
+  echo "DB_DUMP_DIR=dumps-env" > "$PROJDIR/.env"
+  echo "DB_DUMP_DIR=dumps-local" > "$PROJDIR/.env.local"
+  mkdir -p "$PROJDIR/dumps-env" "$PROJDIR/dumps-local"
+  touch "$PROJDIR/dumps-env/depuis-env.sql.gz" "$PROJDIR/dumps-local/depuis-local.sql.gz"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-import" -l
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"depuis-local.sql.gz"* ]]
+  [[ "$output" == *"(.env.local)"* ]]
+  [[ "$output" != *"depuis-env.sql.gz"* ]]
+}
+
+@test ".env.local passe avant .env pour les variables PROD_*" {
+  stub_ssh_scp
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PROD_USER=user
+PROD_HOST=depuis-env.test
+PROD_PATH=/home/user/http/site
+PROD_DB_PATH=db
+ENVFILE
+  echo "PROD_HOST=depuis-local.test" > "$PROJDIR/.env.local"
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"user@depuis-local.test:"* ]]
+  [[ "$output" != *"depuis-env.test"* ]]
+}
+
 @test "db-prod-get échoue explicitement quand PROD_PATH manque" {
   install_addon
   cat > "$PROJDIR/.env" <<'ENVFILE'

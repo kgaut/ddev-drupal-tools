@@ -120,12 +120,14 @@ Chaque commande affiche son aide avec `ddev <commande> -h`, sans rien exécuter.
 
 ## Configuration
 
-Tout se configure dans le `.env` à la racine de chaque projet (jamais sourcé : les variables
-sont extraites par `grep`). Les commandes sont visibles partout mais ne servent que dans les
+Tout se configure dans le `.env.local` ou le `.env` à la racine de chaque projet (jamais
+sourcés : les variables sont extraites par `grep`). Le `.env.local` passe en premier : les
+projets Symfony versionnent leur `.env` et gardent les valeurs locales, comme les accès
+serveur, dans `.env.local`. Les commandes sont visibles partout mais ne servent que dans les
 projets configurés — une variable manquante donne une erreur explicite.
 
 ```bash
-# .env du projet
+# .env.local (ou .env) du projet
 PROD_USER=kevin
 PROD_HOST=mon-serveur.example.org
 PROD_PORT=22                           # optionnel, défaut 22
@@ -143,8 +145,8 @@ absolus et ceux commençant par `~` sont utilisés tels quels.
 ### Dossier de dumps local
 
 Commun à toutes les commandes. Défaut `files/dumps` (relatif à la racine du projet),
-surchargeable via `DB_DUMP_DIR` (`.env` du projet, puis `.ddev/.env`), en chemin relatif ou
-absolu. Les commandes `db-{prod,preprod}-get` acceptent en plus `LOCAL_DB_PATH`, prioritaire
+surchargeable via `DB_DUMP_DIR` (`.env.local` du projet, puis `.env`, puis `.ddev/.env`), en
+chemin relatif ou absolu. Les commandes `db-{prod,preprod}-get` acceptent en plus `LOCAL_DB_PATH`, prioritaire
 sur `DB_DUMP_DIR`.
 
 ## Tests

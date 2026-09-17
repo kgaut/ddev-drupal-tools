@@ -6,13 +6,11 @@
 ## Example: ddev db-prod-dump
 ## Flags: []
 ##
-## Serveur/chemins lus dans le .env du projet : PROD_USER, PROD_HOST,
-## PROD_PATH, PROD_DRUSH, PROD_DB_PATH, PROD_URL (+ PROD_PORT, défaut 22).
+## Serveur/chemins lus dans le .env.local ou le .env du projet : PROD_USER,
+## PROD_HOST, PROD_PATH, PROD_DRUSH, PROD_DB_PATH, PROD_URL (+ PROD_PORT, défaut 22).
 ## Un PROD_DB_PATH relatif est résolu depuis PROD_PATH.
 
 set -euo pipefail
-
-ENV_FILE="${DDEV_APPROOT}/.env"
 
 # Lit une variable dans un fichier .env sans le sourcer (pas d'exécution de code)
 # — même helper que db-import/db-export (dupliqué : un _lib.sh partagé
@@ -39,14 +37,21 @@ read_env_var() {
   printf '%s' "$value"
 }
 
-# Variables PROD_* : l'environnement prime, puis le .env du projet.
+# Première valeur trouvée dans le .env.local, puis dans le .env du projet. Le
+# .env.local passe avant (convention Symfony : le .env peut être versionné, les
+# valeurs locales vont dans .env.local).
+read_project_var() {
+  read_env_var "${DDEV_APPROOT}/.env.local" "$1" || read_env_var "${DDEV_APPROOT}/.env" "$1"
+}
+
+# Variables PROD_* : l'environnement prime, puis le .env.local et le .env.
 for v in PROD_USER PROD_HOST PROD_PORT PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL; do
   [ -n "${!v:-}" ] && continue
-  if val="$(read_env_var "$ENV_FILE" "$v")"; then declare "$v=$val"; fi
+  if val="$(read_project_var "$v")"; then declare "$v=$val"; fi
 done
 PROD_PORT="${PROD_PORT:-22}"
 for v in PROD_USER PROD_HOST PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL; do
-  [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PROD_* dans le .env du projet." >&2; exit 1; }
+  [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PROD_* dans le .env (ou .env.local) du projet." >&2; exit 1; }
 done
 
 # La redirection distante est entre guillemets (le nom du dump contient une
