@@ -2,7 +2,7 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
-## Unreleased
+## 0.4.1 — 2026-09-17
 
 - Stop `ddev start` from listing the add-on's global commands as custom configuration ("Remove unexpected '#ddev-generated' comments") in every project but the one used to install it: DDEV only recognizes add-on files through the current project's manifest, so the installed files now also carry `#ddev-silent-no-warn`. See ADR `0012-installation-marqueur-ddev-silent-no-warn` (#12)
 - `db-{prod,preprod}-dump` checks `<ENV>_DRUSH` before `<ENV>_PATH`, so that a project in `<ENV>_DB_NAME` mode is pointed to `db-*-get` instead of being asked for a path it does not need; a failed `mysqldump` in `db-*-get` now also names `<ENV>_DB_NAME`, since MariaDB answers "Access denied" for a missing database (#14)
