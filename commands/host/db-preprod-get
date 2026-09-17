@@ -4,6 +4,7 @@
 ## Description: Télécharge en local le dernier dump de la base de préproduction
 ## Usage: db-preprod-get
 ## Example: ddev db-preprod-get
+## Flags: []
 ##
 ## Serveur/chemins lus dans le .env du projet : PREPROD_USER, PREPROD_HOST,
 ## PREPROD_PATH, PREPROD_DB_PATH (+ PREPROD_PORT, défaut 22). Un PREPROD_DB_PATH

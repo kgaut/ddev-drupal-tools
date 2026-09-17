@@ -89,6 +89,8 @@ Le nom de dump s'autocomplète (`ddev db-import <tab>`), du plus récent au plus
 Chaque commande a sa jumelle `preprod` : `db-preprod-dump`, `db-preprod-get`,
 `db-preprod-import`, `ssh-preprod` — mêmes fichiers, préfixe de variables `PREPROD_`.
 
+Chaque commande affiche son aide avec `ddev <commande> -h`, sans rien exécuter.
+
 ## Configuration
 
 Tout se configure dans le `.env` à la racine de chaque projet (jamais sourcé : les variables

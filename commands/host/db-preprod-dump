@@ -4,6 +4,7 @@
 ## Description: Dump (gzip) de la base de préproduction sur le serveur distant
 ## Usage: db-preprod-dump
 ## Example: ddev db-preprod-dump
+## Flags: []
 ##
 ## Serveur/chemins lus dans le .env du projet : PREPROD_USER, PREPROD_HOST,
 ## PREPROD_PATH, PREPROD_DRUSH, PREPROD_DB_PATH, PREPROD_URL (+ PREPROD_PORT, défaut 22).

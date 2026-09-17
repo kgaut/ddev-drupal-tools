@@ -83,6 +83,27 @@ install_addon() {
   done
 }
 
+@test "-h affiche l'aide sans exécuter la commande" {
+  # Sans annotation « ## Flags: », DDEV transmet -h au script, qui s'exécute :
+  # téléchargement depuis la prod pour db-*-get, écrasement de la base locale
+  # pour db-*-import. Aucune variable n'est définie ici : une exécution se
+  # trahirait par une erreur « manquant » au lieu de l'aide.
+  install_addon
+  for c in "${COMMANDS[@]}"; do
+    run ddev "$c" -h
+    [ "$status" -eq 0 ] || { echo "$c -h : code $status"; echo "$output"; return 1; }
+    [[ "$output" == *"help for $c"* ]]
+    [[ "$output" != *"manquant"* ]]
+  done
+}
+
+@test "toutes les commandes déclarent « ## Flags: » (sinon -h exécute la commande)" {
+  for f in "$ADDON_DIR"/commands/host/*; do
+    [ -f "$f" ] || continue
+    grep -q '^## Flags: ' "$f" || { echo "« ## Flags: » absent : $f"; return 1; }
+  done
+}
+
 @test "db-prod-dump échoue explicitement quand les variables PROD_* manquent" {
   install_addon
   run ddev db-prod-dump

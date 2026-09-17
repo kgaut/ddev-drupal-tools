@@ -86,6 +86,8 @@ Dump names are tab-completed (`ddev db-import <tab>`), most recent first.
 Each command has its `preprod` (staging) twin: `db-preprod-dump`, `db-preprod-get`,
 `db-preprod-import`, `ssh-preprod` — same files, `PREPROD_` variable prefix.
 
+Every command prints its help with `ddev <command> -h`, without running anything.
+
 ## Configuration
 
 Everything is configured in the `.env` file at each project's root (never sourced: variables

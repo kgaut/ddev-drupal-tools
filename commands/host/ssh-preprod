@@ -4,6 +4,7 @@
 ## Description: Ouvre une session SSH sur le serveur de préproduction
 ## Usage: ssh-preprod
 ## Example: ddev ssh-preprod
+## Flags: []
 ##
 ## Serveur lu dans le .env du projet : PREPROD_USER, PREPROD_HOST
 ## (+ PREPROD_PORT, défaut 22).

@@ -4,6 +4,7 @@
 ## Description: Dump (gzip) de la base de production sur le serveur distant
 ## Usage: db-prod-dump
 ## Example: ddev db-prod-dump
+## Flags: []
 ##
 ## Serveur/chemins lus dans le .env du projet : PROD_USER, PROD_HOST,
 ## PROD_PATH, PROD_DRUSH, PROD_DB_PATH, PROD_URL (+ PROD_PORT, défaut 22).

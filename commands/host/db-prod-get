@@ -4,6 +4,7 @@
 ## Description: Télécharge en local le dernier dump de la base de production
 ## Usage: db-prod-get
 ## Example: ddev db-prod-get
+## Flags: []
 ##
 ## Serveur/chemins lus dans le .env du projet : PROD_USER, PROD_HOST,
 ## PROD_PATH, PROD_DB_PATH (+ PROD_PORT, défaut 22). Un PROD_DB_PATH

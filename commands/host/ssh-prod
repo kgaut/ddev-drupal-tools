@@ -4,6 +4,7 @@
 ## Description: Ouvre une session SSH sur le serveur de production
 ## Usage: ssh-prod
 ## Example: ddev ssh-prod
+## Flags: []
 ##
 ## Serveur lu dans le .env du projet : PROD_USER, PROD_HOST
 ## (+ PROD_PORT, défaut 22).
