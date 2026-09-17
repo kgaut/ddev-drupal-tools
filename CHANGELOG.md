@@ -2,7 +2,7 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
-## Unreleased
+## 0.2.0 — 2026-09-17
 
 - Fix `db-{prod,preprod}-dump` exiting with code 2 after a successful dump: the final listing of the dumps directory ran from the SSH home, where a relative `<ENV>_DB_PATH` does not exist. It now runs from `<ENV>_PATH`, like the dump itself (#10)
 - Fix `ddev <command> -h` running the remote commands (`db-{prod,preprod}-{dump,get,import}`, `ssh-{prod,preprod}`) instead of showing their help: without a `## Flags:` annotation, DDEV passed `-h` on to the script. Unknown flags are now rejected too, e.g. `ddev db-prod-import -y` (#10)

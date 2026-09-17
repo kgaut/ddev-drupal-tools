@@ -2,7 +2,7 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
-## Non publié
+## 0.2.0 — 2026-09-17
 
 - Correction de `db-{prod,preprod}-dump` qui sortait en code 2 après un dump réussi : le listage final du dossier de dumps se lançait depuis le home SSH, où un `<ENV>_DB_PATH` relatif n'existe pas. Il se lance désormais depuis `<ENV>_PATH`, comme le dump lui-même (#10)
 - Correction de `ddev <commande> -h` qui exécutait les commandes distantes (`db-{prod,preprod}-{dump,get,import}`, `ssh-{prod,preprod}`) au lieu d'afficher leur aide : sans annotation `## Flags:`, DDEV transmettait `-h` au script. Les options inconnues sont désormais refusées, par exemple `ddev db-prod-import -y` (#10)
