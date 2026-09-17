@@ -7,6 +7,7 @@
 ##
 ## Serveur/chemins lus dans le .env du projet : PROD_USER, PROD_HOST,
 ## PROD_PATH, PROD_DRUSH, PROD_DB_PATH, PROD_URL (+ PROD_PORT, défaut 22).
+## Un PROD_DB_PATH relatif est résolu depuis PROD_PATH.
 
 set -euo pipefail
 
@@ -60,4 +61,6 @@ echo "Dump de la base de production (${PROD_HOST})…"
 ssh -t -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" \
   "cd ${PROD_PATH} && ${PROD_DRUSH} sql-dump --gzip > \"${remote_db_path}/\$(date +%Y-%m-%d_%H-%M-%S)-${PROD_URL}-prod.sql.gz\""
 echo "Dump terminé."
-ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "ls -alh \"${remote_db_path}\""
+# Même « cd » que pour le dump : sans lui, un PROD_DB_PATH relatif serait
+# cherché depuis le home SSH, et le ls échouerait après un dump réussi.
+ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "cd ${PROD_PATH} && ls -alh \"${remote_db_path}\""

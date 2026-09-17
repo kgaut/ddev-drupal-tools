@@ -7,6 +7,7 @@
 ##
 ## Serveur/chemins lus dans le .env du projet : PREPROD_USER, PREPROD_HOST,
 ## PREPROD_PATH, PREPROD_DRUSH, PREPROD_DB_PATH, PREPROD_URL (+ PREPROD_PORT, défaut 22).
+## Un PREPROD_DB_PATH relatif est résolu depuis PREPROD_PATH.
 
 set -euo pipefail
 
@@ -60,4 +61,6 @@ echo "Dump de la base de préproduction (${PREPROD_HOST})…"
 ssh -t -p "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}" \
   "cd ${PREPROD_PATH} && ${PREPROD_DRUSH} sql-dump --gzip > \"${remote_db_path}/\$(date +%Y-%m-%d_%H-%M-%S)-${PREPROD_URL}-preprod.sql.gz\""
 echo "Dump terminé."
-ssh -p "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}" "ls -alh \"${remote_db_path}\""
+# Même « cd » que pour le dump : sans lui, un PREPROD_DB_PATH relatif serait
+# cherché depuis le home SSH, et le ls échouerait après un dump réussi.
+ssh -p "$PREPROD_PORT" "${PREPROD_USER}@${PREPROD_HOST}" "cd ${PREPROD_PATH} && ls -alh \"${remote_db_path}\""

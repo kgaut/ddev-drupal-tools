@@ -2,6 +2,10 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
+## Unreleased
+
+- Fix `db-{prod,preprod}-dump` exiting with code 2 after a successful dump: the final listing of the dumps directory ran from the SSH home, where a relative `<ENV>_DB_PATH` does not exist. It now runs from `<ENV>_PATH`, like the dump itself (#10)
+
 ## 0.1.3 — 2026-08-31
 
 - Fix `db-{prod,preprod}-get` looking for dumps in the wrong remote directory: a relative `<ENV>_DB_PATH` was resolved from the SSH home, while `db-{prod,preprod}-dump` resolves it from `<ENV>_PATH`, so dumps were written to one directory and searched for in another. Both commands now agree, and `<ENV>_PATH` became a required variable for `db-*-get` (#8)

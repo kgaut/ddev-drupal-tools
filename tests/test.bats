@@ -42,6 +42,25 @@ STUB
   chmod +x "$TESTDIR/bin/ssh" "$TESTDIR/bin/scp"
 }
 
+# Stubs ssh/scp « serveur local » : la machine de test joue le serveur. Le ssh
+# exécute la commande distante (son dernier argument) avec le sh local, depuis
+# $HOME comme une vraie session ; le scp copie « hôte:chemin » vers la
+# destination. C'est donc le script distant lui-même qui est testé.
+stub_ssh_scp_local() {
+  mkdir -p "$TESTDIR/bin"
+  cat > "$TESTDIR/bin/ssh" <<'STUB'
+#!/usr/bin/env bash
+for a in "$@"; do last="$a"; done
+cd "$HOME" && exec sh -c "$last"
+STUB
+  cat > "$TESTDIR/bin/scp" <<'STUB'
+#!/usr/bin/env bash
+for a in "$@"; do src="${dst:-}"; dst="$a"; done
+cd "$HOME" && exec sh -c "cp ${src#*:} \"\$1\"" sh "$dst"
+STUB
+  chmod +x "$TESTDIR/bin/ssh" "$TESTDIR/bin/scp"
+}
+
 install_addon() {
   run ddev add-on get "$ADDON_DIR"
   [ "$status" -eq 0 ]
@@ -181,6 +200,33 @@ ENVFILE
   [ "$status" -eq 0 ]
   [[ "$output" == *"~/dumps/dump.sql.gz"* ]]
   [[ "$output" != *"/home/user/http/site/~"* ]]
+}
+
+@test "db-prod-dump : le listage final trouve un PROD_DB_PATH relatif à PROD_PATH" {
+  # Avant #10, le ls final se lançait depuis le home SSH : code 2 après un
+  # dump pourtant réussi.
+  stub_ssh_scp_local
+  cat > "$TESTDIR/bin/drush" <<'STUB'
+#!/usr/bin/env bash
+echo "faux dump"
+STUB
+  chmod +x "$TESTDIR/bin/drush"
+  mkdir -p "$TESTDIR/remote/site/db"
+  cat > "$PROJDIR/.env" <<ENVFILE
+PROD_USER=user
+PROD_HOST=example.test
+PROD_PATH=$TESTDIR/remote/site
+PROD_DRUSH=$TESTDIR/bin/drush
+PROD_DB_PATH=db
+PROD_URL=example.test
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-dump"
+  [ "$status" -eq 0 ]
+  # le dump est écrit sous PROD_PATH, et le ls final le liste
+  ls "$TESTDIR"/remote/site/db/*-example.test-prod.sql.gz
+  [[ "$output" == *"-example.test-prod.sql.gz"* ]]
 }
 
 @test "db-prod-get échoue explicitement quand PROD_PATH manque" {

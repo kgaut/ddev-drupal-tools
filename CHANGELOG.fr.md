@@ -2,6 +2,10 @@
 
 > 🇬🇧 [English version](CHANGELOG.md)
 
+## Non publié
+
+- Correction de `db-{prod,preprod}-dump` qui sortait en code 2 après un dump réussi : le listage final du dossier de dumps se lançait depuis le home SSH, où un `<ENV>_DB_PATH` relatif n'existe pas. Il se lance désormais depuis `<ENV>_PATH`, comme le dump lui-même (#10)
+
 ## 0.1.3 — 2026-08-31
 
 - Correction de `db-{prod,preprod}-get` qui cherchait les dumps dans le mauvais dossier distant : un `<ENV>_DB_PATH` relatif était résolu depuis le home SSH, alors que `db-{prod,preprod}-dump` le résout depuis `<ENV>_PATH` — les dumps étaient donc écrits dans un dossier et cherchés dans un autre. Les deux commandes s'accordent désormais, et `<ENV>_PATH` devient une variable requise pour `db-*-get` (#8)
