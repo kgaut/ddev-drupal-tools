@@ -64,6 +64,10 @@ for v in PREPROD_USER PREPROD_HOST PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PR
   exit 1
 done
 
+# Sans « / » final, pour des chemins assemblés et affichés proprement.
+[ "$PREPROD_PATH" = / ] || PREPROD_PATH="${PREPROD_PATH%/}"
+[ "$PREPROD_DB_PATH" = / ] || PREPROD_DB_PATH="${PREPROD_DB_PATH%/}"
+
 # La redirection distante est entre guillemets (le nom du dump contient une
 # date) : un « ~ » de tête n'y serait pas développé. On passe par $HOME, évalué
 # par le shell du serveur.

@@ -64,6 +64,10 @@ for v in PROD_USER PROD_HOST PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL; do
   exit 1
 done
 
+# Sans « / » final, pour des chemins assemblés et affichés proprement.
+[ "$PROD_PATH" = / ] || PROD_PATH="${PROD_PATH%/}"
+[ "$PROD_DB_PATH" = / ] || PROD_DB_PATH="${PROD_DB_PATH%/}"
+
 # La redirection distante est entre guillemets (le nom du dump contient une
 # date) : un « ~ » de tête n'y serait pas développé. On passe par $HOME, évalué
 # par le shell du serveur.

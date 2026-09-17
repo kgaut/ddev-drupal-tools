@@ -436,6 +436,22 @@ ENVFILE
   [[ "$output" != *"réservé"* ]]
 }
 
+@test "db-prod-get : pas de double slash quand PROD_PATH ou PROD_DB_PATH finit par /" {
+  stub_ssh_scp
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PROD_USER=user
+PROD_HOST=example.test
+PROD_PATH=/home/user/http/site/
+PROD_DB_PATH=files/dumps/
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/home/user/http/site/files/dumps/dump.sql.gz"* ]]
+  [[ "$output" != *"//"* ]]
+}
+
 @test "db-prod-get échoue explicitement quand PROD_PATH manque" {
   install_addon
   cat > "$PROJDIR/.env" <<'ENVFILE'

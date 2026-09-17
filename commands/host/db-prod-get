@@ -78,6 +78,10 @@ for v in PROD_USER PROD_HOST PROD_PATH PROD_DB_PATH; do
   [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PROD_* dans le .env (ou .env.local) du projet." >&2; exit 1; }
 done
 
+# Sans « / » final, pour des chemins assemblés et affichés proprement.
+[ "$PROD_PATH" = / ] || PROD_PATH="${PROD_PATH%/}"
+[ "$PROD_DB_PATH" = / ] || PROD_DB_PATH="${PROD_DB_PATH%/}"
+
 # Destination locale : LOCAL_DB_PATH > DB_DUMP_DIR (.env.local, .env, .ddev/.env)
 # > files/dumps.
 LOCAL_DB_PATH="${LOCAL_DB_PATH:-}"
