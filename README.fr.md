@@ -55,6 +55,12 @@ Les fichiers portant le marqueur `#ddev-generated` sont remplacés par la nouvel
 Lancer la commande depuis un autre projet fonctionne aussi, mais laisse un second manifeste
 dans ce projet — mieux vaut toujours s'ancrer sur le même.
 
+Les fichiers installés portent aussi `#ddev-silent-no-warn`. DDEV ne reconnaît les fichiers
+d'un addon que par le manifeste du projet courant : sans ce marqueur, `ddev start` listerait
+les commandes globales comme configuration personnalisée (« Remove unexpected
+'#ddev-generated' comments… ») dans tous les projets sauf celui qui détient le manifeste.
+`ddev debug check-custom-config --all` les affiche toujours.
+
 ### Suppression
 
 Depuis le même projet :

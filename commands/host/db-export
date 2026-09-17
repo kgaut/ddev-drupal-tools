@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #ddev-generated
+#ddev-silent-no-warn
 
 ## Description: Exporte la base dans files/dumps/<date>-<projet>-dev.sql.gz (Drupal : drush cr avant)
 ## Usage: db-export [--no-gzip] [-n] [--no-cr]

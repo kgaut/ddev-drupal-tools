@@ -52,6 +52,12 @@ Files carrying the `#ddev-generated` marker are replaced with the new version. R
 command from another project works too, but leaves a second manifest in that project —
 better to always anchor on the same one.
 
+The installed files also carry `#ddev-silent-no-warn`. DDEV only recognizes add-on files
+through the manifest of the current project; without that marker, `ddev start` would list the
+global commands as custom configuration ("Remove unexpected '#ddev-generated' comments…") in
+every project but the one holding the manifest. `ddev debug check-custom-config --all` still
+shows them.
+
 ### Removal
 
 From the same project:

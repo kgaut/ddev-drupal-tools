@@ -142,6 +142,32 @@ install_addon() {
   done
 }
 
+@test "chaque fichier installé porte #ddev-generated puis #ddev-silent-no-warn" {
+  # #ddev-generated : DDEV met à jour et supprime le fichier. #ddev-silent-no-warn :
+  # DDEV ne le signale pas comme configuration personnalisée dans les projets qui
+  # n'ont pas le manifeste de l'addon (tous, sauf celui de l'installation).
+  files="$(sed -n '/^global_files:/,/^[^ ]/s/^  - //p' "$ADDON_DIR/install.yaml")"
+  [ "$(printf '%s\n' "$files" | wc -l)" -eq 11 ]
+  for f in $files; do
+    [ "$(sed -n 2p "$ADDON_DIR/$f")" = "#ddev-generated" ] || { echo "l.2 : $f"; return 1; }
+    [ "$(sed -n 3p "$ADDON_DIR/$f")" = "#ddev-silent-no-warn" ] || { echo "l.3 : $f"; return 1; }
+  done
+}
+
+@test "un projet sans le manifeste de l'addon ne signale pas ses commandes globales" {
+  install_addon
+  mkdir -p "$TESTDIR/autre"
+  cd "$TESTDIR/autre"
+  ddev config --project-name=test-drupal-tools-autre --project-type=php --auto >/dev/null 2>&1
+  [ ! -e .ddev/addon-metadata/drupal-tools ]
+  run ddev debug check-custom-config
+  [[ "$output" != *"commands/host/"* ]]
+  [[ "$output" != *"unexpected #ddev-generated"* ]]
+  # toujours visibles, annotées, avec --all
+  run ddev debug check-custom-config --all
+  [[ "$output" == *"commands/host/db-import (unexpected #ddev-generated) (#ddev-silent-no-warn)"* ]]
+}
+
 @test "db-prod-dump échoue explicitement quand les variables PROD_* manquent" {
   install_addon
   run ddev db-prod-dump

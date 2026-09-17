@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #ddev-generated
+#ddev-silent-no-warn
 
 ## Description: Récupère en local un dump de la base de préproduction (dernier dump du serveur, ou mysqldump en direct)
 ## Usage: db-preprod-get

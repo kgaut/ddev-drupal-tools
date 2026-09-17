@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #ddev-generated
+#ddev-silent-no-warn
 
 ## Description: Dump (gzip) de la base de préproduction sur le serveur distant
 ## Usage: db-preprod-dump

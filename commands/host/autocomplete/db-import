@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #ddev-generated
+#ddev-silent-no-warn
 #
 # Autocomplétion de « ddev db-import » : propose les noms des dumps du dossier
 # de dumps du projet, du plus récent au plus ancien.

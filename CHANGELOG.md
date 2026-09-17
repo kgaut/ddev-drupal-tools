@@ -2,6 +2,10 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
+## Unreleased
+
+- Stop `ddev start` from listing the add-on's global commands as custom configuration ("Remove unexpected '#ddev-generated' comments") in every project but the one used to install it: DDEV only recognizes add-on files through the current project's manifest, so the installed files now also carry `#ddev-silent-no-warn`. See ADR `0012-installation-marqueur-ddev-silent-no-warn` (#12)
+
 ## 0.4.0 — 2026-09-17
 
 - `db-{prod,preprod}-get` can dump without drush: with `<ENV>_DB_NAME` and no `<ENV>_DB_PATH`, it streams a gzipped `mysqldump` (credentials from the server's `~/.my.cnf`) straight to the local dumps directory, keeping the file only once the archive and mysqldump's final line are checked; `db-{prod,preprod}-import` follows, and `db-{prod,preprod}-dump` points there when drush is missing. See ADR `0011-commandes-dump-mysqldump-en-flux` (#11)

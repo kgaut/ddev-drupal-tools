@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #ddev-generated
+#ddev-silent-no-warn
 
 ## Description: Vide la base, importe le dump le plus récent (files/dumps par défaut), puis drush deploy + cr + uli (Drupal) ou cache:clear (Symfony)
 ## Usage: db-import [-y] [-n] [-l] [fichier]
