@@ -2,7 +2,7 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
-## Unreleased
+## 0.3.0 — 2026-09-17
 
 - `db-import` and `db-export` follow the DDEV project type (`type` key of `.ddev/config.yaml`): unchanged `drush` steps for Drupal, `console cache:clear` after an import for Symfony, no automatic step for other types, whose own steps go into DDEV `post-import-db` hooks. See ADR `0009-commandes-etapes-selon-le-type-ddev` (#9)
 - Read `.env.local` before `.env` for every project variable (`<ENV>_*`, `LOCAL_DB_PATH`, `DB_DUMP_DIR`), since Symfony projects commit their `.env` and keep local values in `.env.local`. See ADR `0009-config-env-local-avant-env` (#9)
