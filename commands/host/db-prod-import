@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Télécharge le dernier dump de production puis l'importe en local
+## Description: Récupère un dump de production (dernier dump du serveur, ou mysqldump en direct) puis l'importe en local
 ## Usage: db-prod-import
 ## Example: ddev db-prod-import
 ## Flags: []
 ##
-## Enchaîne `ddev db-prod-get` (téléchargement vers le dossier de dumps) puis
-## `ddev db-import` (qui prend le dump le plus récent de ce dossier).
+## Enchaîne `ddev db-prod-get` (dernier dump du serveur, ou dump mysqldump en
+## direct, posé dans le dossier de dumps) puis `ddev db-import` (qui prend le
+## dump le plus récent de ce dossier).
 
 set -euo pipefail
 

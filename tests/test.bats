@@ -80,6 +80,25 @@ STUB
   touch "$PROJDIR/files/dumps/dump.sql.gz"
 }
 
+# Stub mysqldump, pour le mode <ENV>_DB_NAME (avec stub_ssh_scp_local) : note
+# ses arguments et produit un dump selon STUB_MYSQLDUMP — ok, echec (erreur
+# après un début de dump) ou tronque (sortie sans la ligne de fin).
+stub_mysqldump() {
+  mkdir -p "$TESTDIR/bin"
+  cat > "$TESTDIR/bin/mysqldump" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" > "$TESTDIR/mysqldump.args"
+echo "-- MariaDB dump"
+echo "CREATE TABLE t (id int);"
+case "${STUB_MYSQLDUMP:-ok}" in
+  echec)   echo "mysqldump: Got error: 1045: Access denied" >&2; exit 2 ;;
+  tronque) exit 0 ;;
+esac
+echo "-- Dump completed on 2026-09-17 15:24:24"
+STUB
+  chmod +x "$TESTDIR/bin/mysqldump"
+}
+
 install_addon() {
   run ddev add-on get "$ADDON_DIR"
   [ "$status" -eq 0 ]
@@ -450,6 +469,106 @@ ENVFILE
   [ "$status" -eq 0 ]
   [[ "$output" == *"/home/user/http/site/files/dumps/dump.sql.gz"* ]]
   [[ "$output" != *"//"* ]]
+}
+
+@test "db-prod-get : avec PROD_DB_NAME seul, dump mysqldump frais posé en local" {
+  stub_ssh_scp_local
+  stub_mysqldump
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PROD_USER=user
+PROD_HOST=example.test
+PROD_DB_NAME=appdb
+PROD_URL=example.test
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 0 ]
+  dumps=("$PROJDIR"/files/dumps/*-example.test-prod.sql.gz)
+  [ "${#dumps[@]}" -eq 1 ]
+  [ -f "${dumps[0]}" ]
+  gzip -t "${dumps[0]}"
+  [[ "$(gzip -dc "${dumps[0]}" | tail -n 1)" == "-- Dump completed"* ]]
+  [ "$(ls "$PROJDIR/files/dumps" | wc -l)" -eq 1 ]   # pas de .part résiduel
+  # options indispensables, et pas de --events
+  args="$(cat "$TESTDIR/mysqldump.args")"
+  [[ "$args" == *"--single-transaction"* ]]
+  [[ "$args" == *"--routines"* ]]
+  [[ "$args" == *"--no-tablespaces"* ]]
+  [[ "$args" == *" appdb" ]]
+  [[ "$args" != *"--events"* ]]
+  [[ "$output" == *"Dump téléchargé"* ]]
+}
+
+@test "db-prod-get : un mysqldump en échec ne laisse aucun fichier" {
+  stub_ssh_scp_local
+  stub_mysqldump
+  printf 'PROD_USER=user\nPROD_HOST=example.test\nPROD_DB_NAME=appdb\n' > "$PROJDIR/.env"
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  STUB_MYSQLDUMP=echec run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 1 ]
+  # pipefail côté serveur signale l'échec ; sans lui (dash ancien), c'est
+  # l'absence de la ligne de fin
+  [[ "$output" == *"le dump a échoué"* || "$output" == *"dump incomplet"* ]]
+  [ -d "$PROJDIR/files/dumps" ]
+  [ -z "$(ls -A "$PROJDIR/files/dumps")" ]
+}
+
+@test "db-preprod-get : un dump sans sa ligne de fin est refusé et supprimé" {
+  stub_ssh_scp_local
+  stub_mysqldump
+  printf 'PREPROD_USER=user\nPREPROD_HOST=example.test\nPREPROD_DB_NAME=appdb_pp\n' > "$PROJDIR/.env"
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  STUB_MYSQLDUMP=tronque run bash "$ADDON_DIR/commands/host/db-preprod-get"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"dump incomplet"* ]]
+  [ -z "$(ls -A "$PROJDIR/files/dumps")" ]
+}
+
+@test "db-prod-get : PROD_DB_PATH l'emporte sur PROD_DB_NAME" {
+  stub_ssh_scp
+  cat > "$PROJDIR/.env" <<'ENVFILE'
+PROD_USER=user
+PROD_HOST=example.test
+PROD_PATH=/home/user/http/site
+PROD_DB_PATH=db
+PROD_DB_NAME=appdb
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"/home/user/http/site/db/dump.sql.gz"* ]]
+  [[ "$output" != *"mysqldump"* ]]
+}
+
+@test "db-prod-get : sans PROD_DB_PATH ni PROD_DB_NAME, erreur explicite" {
+  printf 'PROD_USER=user\nPROD_HOST=example.test\nPROD_PATH=/srv/site\n' > "$PROJDIR/.env"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"PROD_DB_PATH ou PROD_DB_NAME manquant"* ]]
+}
+
+@test "db-prod-dump : sans drush mais avec PROD_DB_NAME, renvoi vers db-prod-get" {
+  printf 'PROD_USER=user\nPROD_HOST=example.test\nPROD_PATH=/srv/site\nPROD_DB_NAME=appdb\n' > "$PROJDIR/.env"
+  export DDEV_APPROOT="$PROJDIR"
+  DDEV_PROJECT_TYPE=symfony run bash "$ADDON_DIR/commands/host/db-prod-dump"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"ddev db-prod-get"* ]]
+}
+
+@test "db-import ignore un dump en cours de téléchargement (.part)" {
+  mkdir -p "$PROJDIR/files/dumps"
+  touch -t 202601011200 "$PROJDIR/files/dumps/complet.sql.gz"
+  touch "$PROJDIR/files/dumps/en-cours.sql.gz.part"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-import" -l
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"complet.sql.gz"* ]]
+  [[ "$output" != *"en-cours"* ]]
 }
 
 @test "db-prod-get échoue explicitement quand PROD_PATH manque" {

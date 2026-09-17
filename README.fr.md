@@ -102,14 +102,15 @@ hooks:
 ```
 
 `db-{prod,preprod}-dump` passe par `drush sql-dump` sur le serveur : il ne sert qu'aux projets
-Drupal.
+Drupal. Les autres projets obtiennent leurs dumps par `mysqldump`, via `db-{prod,preprod}-get`
+(voir [Dump sans drush](#dump-sans-drush)).
 
 ### Serveur distant (production / pré-production)
 
 | Commande | Description |
 | --- | --- |
 | `ddev db-prod-dump` | `drush sql-dump --gzip` sur le serveur, fichier horodaté dans `PROD_DB_PATH` (le dump reste sur le serveur). Drupal uniquement. |
-| `ddev db-prod-get` | Rapatrie le dump distant le plus récent dans le dossier de dumps local, affiche sa date et avertit s'il a plus de 24 h. |
+| `ddev db-prod-get` | Pose un dump de production dans le dossier de dumps local : le plus récent de `PROD_DB_PATH` sur le serveur (avec sa date, et un avertissement au-delà de 24 h), ou un `mysqldump` frais de `PROD_DB_NAME`, envoyé directement dans le dossier local. |
 | `ddev db-prod-import` | Enchaîne `db-prod-get` + `db-import`. |
 | `ddev ssh-prod` | Session SSH sur le serveur de production du projet courant. |
 
@@ -135,12 +136,31 @@ PROD_PATH=/var/www/monprojet           # racine du projet sur le serveur
 PROD_DRUSH=vendor/bin/drush            # binaire drush, relatif à PROD_PATH
 PROD_DB_PATH=dumps                     # dossier des dumps, relatif à PROD_PATH
 PROD_URL=monprojet.example.org         # sert à nommer les fichiers de dump
+PROD_DB_NAME=monprojet                 # nom de la base, pour un dump sans drush (voir plus bas)
 
 # même principe pour la préprod, préfixe PREPROD_
 ```
 
 Comme `PROD_DRUSH`, un `PROD_DB_PATH` relatif est résolu depuis `PROD_PATH`. Les chemins
 absolus et ceux commençant par `~` sont utilisés tels quels.
+
+### Dump sans drush
+
+Avec `PROD_DB_NAME` et **sans** `PROD_DB_PATH`, `db-prod-get` (donc aussi `db-prod-import`)
+lance `mysqldump` sur le serveur et envoie la sortie compressée directement dans le dossier de
+dumps local : rien n'est écrit sur le serveur. Seules `PROD_USER`, `PROD_HOST` et
+`PROD_DB_NAME` sont requises (`PROD_URL` nomme le fichier, à défaut le nom du projet DDEV).
+
+- Les identifiants viennent du `~/.my.cnf` du compte SSH (section `[client]`, avec `user` et
+  `password`) : aucun mot de passe ne passe par l'addon.
+- Options : `--single-transaction --quick --routines --triggers --no-tablespaces`. Les
+  événements sont laissés de côté : ils exigent le droit `EVENT`, et les tâches planifiées de
+  prod n'ont rien à faire en local.
+- Le flux arrive dans un fichier `.part`, ignoré par `db-import`. Il n'est conservé que si
+  l'archive est valide et se termine par la ligne `-- Dump completed` de mysqldump ; sinon il
+  est supprimé, y compris sur Ctrl-C.
+- Si les deux variables sont définies, `PROD_DB_PATH` l'emporte : ce sont les dumps existants
+  du serveur qui sont rapatriés.
 
 ### Dossier de dumps local
 

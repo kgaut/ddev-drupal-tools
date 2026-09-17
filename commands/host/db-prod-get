@@ -1,22 +1,31 @@
 #!/usr/bin/env bash
 #ddev-generated
 
-## Description: Télécharge en local le dernier dump de la base de production
+## Description: Récupère en local un dump de la base de production (dernier dump du serveur, ou mysqldump en direct)
 ## Usage: db-prod-get
 ## Example: ddev db-prod-get
 ## Flags: []
 ##
-## Serveur/chemins lus dans le .env.local ou le .env du projet : PROD_USER,
-## PROD_HOST, PROD_PATH, PROD_DB_PATH (+ PROD_PORT, défaut 22). Un PROD_DB_PATH
-## relatif est résolu depuis PROD_PATH, comme dans db-prod-dump.
+## Serveur lu dans le .env.local ou le .env du projet : PROD_USER, PROD_HOST
+## (+ PROD_PORT, défaut 22). Deux modes :
+## - PROD_DB_PATH (+ PROD_PATH) : rapatrie le dump le plus récent de ce dossier
+##   du serveur (un chemin relatif est résolu depuis PROD_PATH, comme dans
+##   db-prod-dump), en affichant sa date et en avertissant s'il a plus de 24 h ;
+## - PROD_DB_NAME, sans PROD_DB_PATH : fait un dump frais par mysqldump, envoyé
+##   directement en local, sans fichier sur le serveur. Identifiants dans le
+##   ~/.my.cnf du compte SSH ; nom du fichier d'après PROD_URL.
 ## Destination locale : LOCAL_DB_PATH, sinon DB_DUMP_DIR (.env.local, .env puis
 ## .ddev/.env — le dossier de dumps de db-import), sinon files/dumps.
-## Affiche la date du dump récupéré, et avertit s'il a plus de 24 h.
 
 set -euo pipefail
 
 # Au-delà, le dump est signalé comme ancien (sans bloquer).
 MAX_AGE_HOURS=24
+# Options de mysqldump (mode PROD_DB_NAME) : --routines garde les procédures
+# stockées, --single-transaction évite de verrouiller les tables InnoDB,
+# --no-tablespaces se passe du droit PROCESS. Pas de --events : il exige le
+# droit EVENT, et les tâches planifiées de prod n'ont rien à faire en local.
+MYSQLDUMP_OPTS="--single-transaction --quick --routines --triggers --no-tablespaces"
 
 # Formatage d'un timestamp : « date » n'a pas les mêmes options en GNU (Linux)
 # et en BSD (macOS) — même détection que db-import.
@@ -69,14 +78,29 @@ read_project_var() {
 }
 
 # Variables PROD_* : l'environnement prime, puis le .env.local et le .env.
-for v in PROD_USER PROD_HOST PROD_PORT PROD_PATH PROD_DB_PATH; do
+for v in PROD_USER PROD_HOST PROD_PORT PROD_PATH PROD_DB_PATH PROD_DB_NAME PROD_URL; do
   [ -n "${!v:-}" ] && continue
   if val="$(read_project_var "$v")"; then declare "$v=$val"; fi
 done
 PROD_PORT="${PROD_PORT:-22}"
-for v in PROD_USER PROD_HOST PROD_PATH PROD_DB_PATH; do
-  [ -n "${!v:-}" ] || { echo "Erreur : $v manquant — définir les variables PROD_* dans le .env (ou .env.local) du projet." >&2; exit 1; }
+PROD_PATH="${PROD_PATH:-}"
+PROD_DB_PATH="${PROD_DB_PATH:-}"
+PROD_DB_NAME="${PROD_DB_NAME:-}"
+missing() {
+  echo "Erreur : $1 manquant — définir les variables PROD_* dans le .env (ou .env.local) du projet." >&2
+  exit 1
+}
+for v in PROD_USER PROD_HOST; do
+  [ -n "${!v:-}" ] || missing "$v"
 done
+# Mode : les dumps existants du serveur (PROD_DB_PATH) l'emportent ; sinon,
+# dump frais par mysqldump (PROD_DB_NAME).
+if [ -n "$PROD_DB_PATH" ]; then
+  [ -n "$PROD_PATH" ] || missing PROD_PATH
+elif [ -z "$PROD_DB_NAME" ]; then
+  echo "Erreur : PROD_DB_PATH ou PROD_DB_NAME manquant — PROD_DB_PATH pour rapatrier les dumps du serveur, PROD_DB_NAME pour un dump mysqldump envoyé directement en local." >&2
+  exit 1
+fi
 
 # Sans « / » final, pour des chemins assemblés et affichés proprement.
 [ "$PROD_PATH" = / ] || PROD_PATH="${PROD_PATH%/}"
@@ -94,6 +118,43 @@ case "$LOCAL_DB_PATH" in
   /*) DEST_DIR="$LOCAL_DB_PATH" ;;
   *)  DEST_DIR="${DDEV_APPROOT}/${LOCAL_DB_PATH}" ;;
 esac
+
+# Mode PROD_DB_NAME : mysqldump en flux, du serveur vers le dossier local.
+if [ -z "$PROD_DB_PATH" ]; then
+  name="$(date +%Y-%m-%d_%H-%M-%S)-${PROD_URL:-${DDEV_PROJECT:-db}}-prod.sql.gz"
+  target="${DEST_DIR}/${name}"
+  # Le flux arrive dans un « .part », qu'ignore db-import : un dump interrompu
+  # ne peut pas être importé par erreur. Supprimé en cas d'échec ou de Ctrl-C.
+  part="${target}.part"
+  mkdir -p "$DEST_DIR"
+  trap 'rm -f "$part"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  echo "Dump de la base ${PROD_DB_NAME} (${PROD_HOST}) par mysqldump, directement en local…"
+  # pipefail côté serveur quand le shell le connaît : testé dans un sous-shell,
+  # un « set » refusé arrêterait un dash ancien.
+  if ! ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" \
+    "if (set -o pipefail) 2>/dev/null; then set -o pipefail; fi; nice -n 10 mysqldump ${MYSQLDUMP_OPTS} '${PROD_DB_NAME}' | nice -n 10 gzip" \
+    > "$part"; then
+    echo "Erreur : le dump a échoué sur ${PROD_HOST} (identifiants mysqldump dans le ~/.my.cnf du compte SSH ?)." >&2
+    exit 1
+  fi
+  # Contrôles : archive intègre, et dernière ligne écrite par mysqldump en fin
+  # de dump réussi.
+  if ! gzip -t "$part" 2>/dev/null; then
+    echo "Erreur : archive incomplète ou corrompue, dump supprimé." >&2
+    exit 1
+  fi
+  last="$(gzip -dc "$part" | tail -n 1)"
+  case "$last" in
+    "-- Dump completed"*) ;;
+    *) echo "Erreur : dump incomplet (dernière ligne : « ${last:0:80} »), dump supprimé." >&2; exit 1 ;;
+  esac
+  mv "$part" "$target"
+  trap - EXIT INT TERM
+  echo "Dump téléchargé : ${target} ($(du -h "$target" | cut -f1))"
+  exit 0
+fi
 
 # Chemin distant : un PROD_DB_PATH relatif est résolu depuis
 # PROD_PATH — même convention que db-prod-dump, qui écrit ses dumps

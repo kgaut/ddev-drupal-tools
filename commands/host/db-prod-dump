@@ -9,7 +9,7 @@
 ## Serveur/chemins lus dans le .env.local ou le .env du projet : PROD_USER,
 ## PROD_HOST, PROD_PATH, PROD_DRUSH, PROD_DB_PATH, PROD_URL (+ PROD_PORT, défaut 22).
 ## Un PROD_DB_PATH relatif est résolu depuis PROD_PATH. Passe par drush : réservé
-## aux projets Drupal.
+## aux projets Drupal (sans drush : PROD_DB_NAME et db-prod-get).
 
 set -euo pipefail
 
@@ -46,18 +46,22 @@ read_project_var() {
 }
 
 # Variables PROD_* : l'environnement prime, puis le .env.local et le .env.
-for v in PROD_USER PROD_HOST PROD_PORT PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL; do
+for v in PROD_USER PROD_HOST PROD_PORT PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL PROD_DB_NAME; do
   [ -n "${!v:-}" ] && continue
   if val="$(read_project_var "$v")"; then declare "$v=$val"; fi
 done
 PROD_PORT="${PROD_PORT:-22}"
 for v in PROD_USER PROD_HOST PROD_PATH PROD_DRUSH PROD_DB_PATH PROD_URL; do
   [ -n "${!v:-}" ] && continue
-  # Sans drush, un projet non Drupal n'a rien à configurer : le dire.
+  # Sans drush, pas de dump sur le serveur : orienter vers ce qui existe.
   if [ "$v" = PROD_DRUSH ]; then
+    if [ -n "${PROD_DB_NAME:-}" ]; then
+      echo "Erreur : PROD_DRUSH manquant — db-prod-dump passe par « drush sql-dump » sur le serveur. Avec PROD_DB_NAME, « ddev db-prod-get » fait un dump mysqldump envoyé directement en local (et « ddev db-prod-import » l'importe)." >&2
+      exit 1
+    fi
     case "${DDEV_PROJECT_TYPE:-}" in
       drupal|drupal[0-9]*) ;;
-      *) echo "Erreur : PROD_DRUSH manquant — db-prod-dump passe par « drush sql-dump », réservé aux projets Drupal (type DDEV de ce projet : ${DDEV_PROJECT_TYPE:-inconnu})." >&2; exit 1 ;;
+      *) echo "Erreur : PROD_DRUSH manquant — db-prod-dump passe par « drush sql-dump », réservé aux projets Drupal (type DDEV de ce projet : ${DDEV_PROJECT_TYPE:-inconnu}). Pour un dump par mysqldump : définir PROD_DB_NAME et lancer « ddev db-prod-get »." >&2; exit 1 ;;
     esac
   fi
   echo "Erreur : $v manquant — définir les variables PROD_* dans le .env (ou .env.local) du projet." >&2

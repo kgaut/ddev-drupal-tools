@@ -2,6 +2,10 @@
 
 > 🇫🇷 [Version française](CHANGELOG.fr.md)
 
+## Unreleased
+
+- `db-{prod,preprod}-get` can dump without drush: with `<ENV>_DB_NAME` and no `<ENV>_DB_PATH`, it streams a gzipped `mysqldump` (credentials from the server's `~/.my.cnf`) straight to the local dumps directory, keeping the file only once the archive and mysqldump's final line are checked; `db-{prod,preprod}-import` follows, and `db-{prod,preprod}-dump` points there when drush is missing. See ADR `0011-commandes-dump-mysqldump-en-flux` (#11)
+
 ## 0.3.0 — 2026-09-17
 
 - `db-import` and `db-export` follow the DDEV project type (`type` key of `.ddev/config.yaml`): unchanged `drush` steps for Drupal, `console cache:clear` after an import for Symfony, no automatic step for other types, whose own steps go into DDEV `post-import-db` hooks. See ADR `0009-commandes-etapes-selon-le-type-ddev` (#9)

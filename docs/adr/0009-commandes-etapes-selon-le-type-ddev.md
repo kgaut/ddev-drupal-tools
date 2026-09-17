@@ -1,6 +1,6 @@
 # 0009 — Les étapes autour d'un import ou d'un export suivent le type DDEV du projet
 
-- **Statut** : En vigueur
+- **Statut** : Complétée par `0011-commandes-dump-mysqldump-en-flux`
 - **Date** : 17/09/2026
 - **Ticket** : #9
 - **Périmètre** : commandes
@@ -89,3 +89,7 @@ choisit les étapes.
 
 - **17/09/2026** : ADR écrite dans #9, après la décision de Kevin (« base-toi sur la clé type du
   config.yaml de ddev ») et le retour de la session datafcid.
+- **17/09/2026** : complétée par `0011-commandes-dump-mysqldump-en-flux` (#11). `db-*-get` sait
+  désormais dumper sans drush (mysqldump envoyé directement en local), et l'erreur de
+  `db-*-dump` sans `<ENV>_DRUSH` y renvoie. La règle de cette ADR sur `db-*-dump` reste en
+  vigueur.

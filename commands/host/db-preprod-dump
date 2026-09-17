@@ -9,7 +9,7 @@
 ## Serveur/chemins lus dans le .env.local ou le .env du projet : PREPROD_USER,
 ## PREPROD_HOST, PREPROD_PATH, PREPROD_DRUSH, PREPROD_DB_PATH, PREPROD_URL (+ PREPROD_PORT, défaut 22).
 ## Un PREPROD_DB_PATH relatif est résolu depuis PREPROD_PATH. Passe par drush : réservé
-## aux projets Drupal.
+## aux projets Drupal (sans drush : PREPROD_DB_NAME et db-preprod-get).
 
 set -euo pipefail
 
@@ -46,18 +46,22 @@ read_project_var() {
 }
 
 # Variables PREPROD_* : l'environnement prime, puis le .env.local et le .env.
-for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PREPROD_URL; do
+for v in PREPROD_USER PREPROD_HOST PREPROD_PORT PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PREPROD_URL PREPROD_DB_NAME; do
   [ -n "${!v:-}" ] && continue
   if val="$(read_project_var "$v")"; then declare "$v=$val"; fi
 done
 PREPROD_PORT="${PREPROD_PORT:-22}"
 for v in PREPROD_USER PREPROD_HOST PREPROD_PATH PREPROD_DRUSH PREPROD_DB_PATH PREPROD_URL; do
   [ -n "${!v:-}" ] && continue
-  # Sans drush, un projet non Drupal n'a rien à configurer : le dire.
+  # Sans drush, pas de dump sur le serveur : orienter vers ce qui existe.
   if [ "$v" = PREPROD_DRUSH ]; then
+    if [ -n "${PREPROD_DB_NAME:-}" ]; then
+      echo "Erreur : PREPROD_DRUSH manquant — db-preprod-dump passe par « drush sql-dump » sur le serveur. Avec PREPROD_DB_NAME, « ddev db-preprod-get » fait un dump mysqldump envoyé directement en local (et « ddev db-preprod-import » l'importe)." >&2
+      exit 1
+    fi
     case "${DDEV_PROJECT_TYPE:-}" in
       drupal|drupal[0-9]*) ;;
-      *) echo "Erreur : PREPROD_DRUSH manquant — db-preprod-dump passe par « drush sql-dump », réservé aux projets Drupal (type DDEV de ce projet : ${DDEV_PROJECT_TYPE:-inconnu})." >&2; exit 1 ;;
+      *) echo "Erreur : PREPROD_DRUSH manquant — db-preprod-dump passe par « drush sql-dump », réservé aux projets Drupal (type DDEV de ce projet : ${DDEV_PROJECT_TYPE:-inconnu}). Pour un dump par mysqldump : définir PREPROD_DB_NAME et lancer « ddev db-preprod-get »." >&2; exit 1 ;;
     esac
   fi
   echo "Erreur : $v manquant — définir les variables PREPROD_* dans le .env (ou .env.local) du projet." >&2
