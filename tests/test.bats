@@ -189,6 +189,8 @@ ENVFILE
   [[ "$output" == *"/home/user/http/site/db/dump.sql.gz"* ]]
   # et surtout : jamais le chemin nu, qui viserait le home du serveur
   [[ "$output" != *"example.test:db/"* ]]
+  # le stub ne renvoie pas d'âge : la date est signalée comme inconnue
+  [[ "$output" == *"Date du dump : inconnue"* ]]
 }
 
 @test "db-prod-get : un PROD_DB_PATH absolu est laissé tel quel" {
@@ -248,6 +250,61 @@ ENVFILE
   # le dump est écrit sous PROD_PATH, et le ls final le liste
   ls "$TESTDIR"/remote/site/db/*-example.test-prod.sql.gz
   [[ "$output" == *"-example.test-prod.sql.gz"* ]]
+}
+
+@test "db-prod-get : affiche la date du dump et avertit s'il a plus de 24 h" {
+  stub_ssh_scp_local
+  mkdir -p "$TESTDIR/remote/site/db"
+  touch -t 202601011200 "$TESTDIR/remote/site/db/vieux.sql.gz"
+  cat > "$PROJDIR/.env" <<ENVFILE
+PROD_USER=user
+PROD_HOST=example.test
+PROD_PATH=$TESTDIR/remote/site
+PROD_DB_PATH=db
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJDIR/files/dumps/vieux.sql.gz" ]
+  [[ "$output" == *"Date du dump : 2026-01-01 12:00"* ]]
+  [[ "$output" == *"Attention : ce dump a plus de 24 h"* ]]
+}
+
+@test "db-preprod-get : un dump récent est daté sans avertissement (dossier en ~)" {
+  stub_ssh_scp_local
+  mkdir -p "$HOME/dumps"
+  touch -t 202601011200 "$HOME/dumps/vieux.sql.gz"
+  touch "$HOME/dumps/recent.sql.gz"
+  # heredoc non protégé pour $TESTDIR ; le ~ n'y est pas développé
+  cat > "$PROJDIR/.env" <<ENVFILE
+PREPROD_USER=user
+PREPROD_HOST=example.test
+PREPROD_PATH=$TESTDIR/remote/site
+PREPROD_DB_PATH=~/dumps
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-preprod-get"
+  [ "$status" -eq 0 ]
+  [ -f "$PROJDIR/files/dumps/recent.sql.gz" ]
+  [[ "$output" == *"(il y a 0 min)"* ]]
+  [[ "$output" != *"Attention"* ]]
+}
+
+@test "db-prod-get : un dossier distant absent donne une erreur explicite" {
+  stub_ssh_scp_local
+  cat > "$PROJDIR/.env" <<ENVFILE
+PROD_USER=user
+PROD_HOST=example.test
+PROD_PATH=$TESTDIR/remote/site
+PROD_DB_PATH=absent
+ENVFILE
+  export PATH="$TESTDIR/bin:$PATH"
+  export DDEV_APPROOT="$PROJDIR"
+  run bash "$ADDON_DIR/commands/host/db-prod-get"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"aucun dump .sql.gz"* ]]
 }
 
 @test "db-prod-get échoue explicitement quand PROD_PATH manque" {

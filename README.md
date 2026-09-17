@@ -79,7 +79,7 @@ Dump names are tab-completed (`ddev db-import <tab>`), most recent first.
 | Command | Description |
 | --- | --- |
 | `ddev db-prod-dump` | Runs `drush sql-dump --gzip` on the server, into a timestamped file in `PROD_DB_PATH` (the dump stays on the server). |
-| `ddev db-prod-get` | Downloads the most recent remote dump into the local dumps directory. |
+| `ddev db-prod-get` | Downloads the most recent remote dump into the local dumps directory, shows its date and warns when it is more than 24 hours old. |
 | `ddev db-prod-import` | Chains `db-prod-get` + `db-import`. |
 | `ddev ssh-prod` | Opens an SSH session on the current project's production server. |
 

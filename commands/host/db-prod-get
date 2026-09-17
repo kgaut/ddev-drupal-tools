@@ -12,10 +12,31 @@
 ## Destination locale :
 ## LOCAL_DB_PATH, sinon DB_DUMP_DIR (.env puis .ddev/.env — le dossier de dumps
 ## de db-import), sinon files/dumps.
+## Affiche la date du dump récupéré, et avertit s'il a plus de 24 h.
 
 set -euo pipefail
 
 ENV_FILE="${DDEV_APPROOT}/.env"
+# Au-delà, le dump est signalé comme ancien (sans bloquer).
+MAX_AGE_HOURS=24
+
+# Formatage d'un timestamp : « date » n'a pas les mêmes options en GNU (Linux)
+# et en BSD (macOS) — même détection que db-import.
+if stat -c '%Y' . >/dev/null 2>&1; then
+  fmt_epoch() { date -d "@$1" '+%Y-%m-%d %H:%M'; }
+else
+  fmt_epoch() { date -r "$1" '+%Y-%m-%d %H:%M'; }
+fi
+
+# Durée lisible : « 42 min », « 5 h », « 18 j ».
+fmt_age() {
+  local s="$1"
+  [ "$s" -ge 0 ] || s=0
+  if [ "$s" -lt 3600 ]; then echo "$(( s / 60 )) min"
+  elif [ "$s" -lt 86400 ]; then echo "$(( s / 3600 )) h"
+  else echo "$(( s / 86400 )) j"
+  fi
+}
 
 # Lit une variable dans un fichier .env sans le sourcer (pas d'exécution de code)
 # — même helper que db-import/db-export (dupliqué : un _lib.sh partagé
@@ -73,10 +94,40 @@ case "${PROD_DB_PATH}" in
   *)            REMOTE_DB_DIR="${PROD_PATH}/${PROD_DB_PATH}" ;;
 esac
 
-DUMP="$(ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "ls -t ${REMOTE_DB_DIR}/ | grep -E '[.]sql[.]gz$' | head -1")"
+# Script distant : nom du dump le plus récent, puis son âge en secondes.
+# L'âge est calculé par le serveur (pas de décalage d'horloge avec le poste
+# local) ; « stat -c » est GNU, « stat -f » BSD. Le dossier arrive par
+# l'affectation « d=… », où le shell distant développe un « ~ » de tête.
+# Le « true » final garde le comportement historique : un dossier vide ou
+# absent donne une sortie vide, signalée plus bas, pas un échec de ssh.
+# shellcheck disable=SC2016  # les $… sont évalués par le shell distant
+REMOTE_SCRIPT='f=$(ls -t "$d"/ | grep -E "[.]sql[.]gz\$" | head -1)
+if [ -n "$f" ]; then
+  echo "$f"
+  m=$(stat -c %Y "$d/$f" 2>/dev/null || stat -f %m "$d/$f" 2>/dev/null) && echo $(( $(date +%s) - m ))
+fi
+true'
+DUMP_INFO="$(ssh -p "$PROD_PORT" "${PROD_USER}@${PROD_HOST}" "d=${REMOTE_DB_DIR}
+${REMOTE_SCRIPT}")"
+DUMP="$(printf '%s\n' "$DUMP_INFO" | sed -n '1p')"
+DUMP_AGE="$(printf '%s\n' "$DUMP_INFO" | sed -n '2p')"
 [ -n "$DUMP" ] || { echo "Erreur : aucun dump .sql.gz dans ${PROD_HOST}:${REMOTE_DB_DIR}/" >&2; exit 1; }
+[[ "$DUMP_AGE" =~ ^-?[0-9]+$ ]] || DUMP_AGE=""   # âge absent ou illisible
 
 echo "Téléchargement du dump : ${REMOTE_DB_DIR}/${DUMP}"
+if [ -n "$DUMP_AGE" ]; then
+  echo "Date du dump : $(fmt_epoch "$(( $(date +%s) - DUMP_AGE ))") (il y a $(fmt_age "$DUMP_AGE"))"
+else
+  echo "Date du dump : inconnue (date de modification illisible sur le serveur)"
+fi
+# Pas de « scp -p » : le fichier local prend la date du téléchargement, ce qui
+# en fait le plus récent du dossier, celui que db-import choisit ensuite dans
+# db-prod-import.
 mkdir -p "$DEST_DIR"
 scp -P "$PROD_PORT" "${PROD_USER}@${PROD_HOST}:${REMOTE_DB_DIR}/${DUMP}" "$DEST_DIR/"
 echo "Dump téléchargé : ${DEST_DIR}/${DUMP}"
+
+if [ -n "$DUMP_AGE" ] && [ "$DUMP_AGE" -gt $(( MAX_AGE_HOURS * 3600 )) ]; then
+  echo "Attention : ce dump a plus de ${MAX_AGE_HOURS} h (il y a $(fmt_age "$DUMP_AGE"))." >&2
+  echo "  Vérifier PROD_DB_PATH (${PROD_DB_PATH}), ou lancer d'abord « ddev db-prod-dump »." >&2
+fi

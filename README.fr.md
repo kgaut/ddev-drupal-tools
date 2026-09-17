@@ -82,7 +82,7 @@ Le nom de dump s'autocomplète (`ddev db-import <tab>`), du plus récent au plus
 | Commande | Description |
 | --- | --- |
 | `ddev db-prod-dump` | `drush sql-dump --gzip` sur le serveur, fichier horodaté dans `PROD_DB_PATH` (le dump reste sur le serveur). |
-| `ddev db-prod-get` | Rapatrie le dump distant le plus récent dans le dossier de dumps local. |
+| `ddev db-prod-get` | Rapatrie le dump distant le plus récent dans le dossier de dumps local, affiche sa date et avertit s'il a plus de 24 h. |
 | `ddev db-prod-import` | Enchaîne `db-prod-get` + `db-import`. |
 | `ddev ssh-prod` | Session SSH sur le serveur de production du projet courant. |
 
